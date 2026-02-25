@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/etName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="药物名称"
+        android:inputType="text" />
+
+    <EditText
+        android:id="@+id/etHalfLife"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:hint="半衰期（小时）"
+        android:inputType="numberDecimal" />
+
+    <EditText
+        android:id="@+id/etTmax"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:hint="达峰时间 Tmax（小时）"
+        android:inputType="numberDecimal" />
+
+    <EditText
+        android:id="@+id/etDose"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:hint="常用剂量（可选）"
+        android:inputType="numberDecimal" />
+
+    <Switch
+        android:id="@+id/switchLipophilic"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="脂溶性药物" />
+</LinearLayout>
