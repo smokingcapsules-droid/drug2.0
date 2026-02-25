@@ -44,7 +44,10 @@
                 android:layout_marginTop="4dp"
                 android:text="预设"
                 android:textSize="11sp"
-                android:padding="2dp 6dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
                 android:background="#E3F2FD"
                 android:textColor="#1976D2" />
         </LinearLayout>
