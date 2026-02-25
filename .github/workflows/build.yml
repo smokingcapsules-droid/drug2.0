@@ -9,6 +9,12 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+      - name: Fix Gradle Wrapper
+        run: |
+          cd drug_app_fixed/drug_app_fixed
+          mkdir -p gradle/wrapper
+          curl -o gradle/wrapper/gradle-wrapper.jar \
+            https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradle/wrapper/gradle-wrapper.jar
       - name: Build APK
         run: |
           cd drug_app_fixed/drug_app_fixed
