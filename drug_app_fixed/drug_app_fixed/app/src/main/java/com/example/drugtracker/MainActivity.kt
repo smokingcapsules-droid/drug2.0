@@ -5,10 +5,10 @@ import android.app.TimePickerDialog
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.view.Window
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.example.drugtracker.data.MedicationRecord
@@ -34,26 +34,36 @@ class MainActivity : AppCompatActivity() {
     private var selectedTimeMs: Long = System.currentTimeMillis()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // [修复核心]：在 super.onCreate 之前强制声明不需要标题栏，防止 Android 16 系统注入 ActionBar 冲突
+        supportRequestWindowFeature(Window.FEATURE_NO_TITLE)
+        
         super.onCreate(savedInstanceState)
+        
+        // 初始化 ViewBinding
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
 
+        // 初始化 ViewModel
         viewModel = ViewModelProvider(this)[MedicationViewModel::class.java]
 
+        // UI 初始设置
         updateTimeButtonText()
         setupDrugSpinner()
         setupChartTabs()
         setupButtons()
         setupChart()
         observeData()
+        
+        // 处理外部 Intent（如通知快捷记录）
         checkQuickRecord(intent)
 
+        // 启动提醒引擎
         ReminderEngine.scheduleLevothyroxineDaily(this)
     }
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
+        setIntent(intent) // 确保 intent 被更新
         checkQuickRecord(intent)
     }
 
@@ -130,13 +140,15 @@ class MainActivity : AppCompatActivity() {
 
     // ── 图表 Tab ─────────────────────────────────────────
     private fun setupChartTabs() {
-        listOf("今日活跃", "功能性", "维持类", "全部").forEach { label ->
-            binding.tabLayout.addTab(binding.tabLayout.newTab().setText(label))
+        if (binding.tabLayout.tabCount == 0) { // 防止重复添加 Tab
+            listOf("今日活跃", "功能性", "维持类", "全部").forEach { label ->
+                binding.tabLayout.addTab(binding.tabLayout.newTab().setText(label))
+            }
         }
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) { updateChartForTab(tab?.position ?: 0) }
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
-            override fun onTabReselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) { updateChartForTab(tab?.position ?: 0) }
         })
     }
 
@@ -244,6 +256,7 @@ class MainActivity : AppCompatActivity() {
         val nowMs = System.currentTimeMillis()
         val allDrugs = PresetDrugs.all + (viewModel.allCustomDrugs.value?.map { it.toDrugInfo() } ?: emptyList())
 
+        // 内部配置类
         data class TabConfig(val drugs: List<com.example.drugtracker.data.DrugInfo>, val startMs: Long, val endMs: Long)
 
         val config = when (tabPosition) {
