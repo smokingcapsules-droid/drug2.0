@@ -4,8 +4,6 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Intent
 import android.os.Bundle
-import android.view.Menu
-import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
@@ -39,7 +37,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        setSupportActionBar(binding.toolbar)
+        
 
         viewModel = ViewModelProvider(this)[MedicationViewModel::class.java]
 
@@ -265,20 +263,5 @@ class MainActivity : AppCompatActivity() {
             binding.chart, currentRecords, config.drugs, weightKg,
             config.startMs, config.endMs, nowMs
         )
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.main_menu, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_refresh -> {
-                updateChartForTab(binding.tabLayout.selectedTabPosition)
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
     }
 }
