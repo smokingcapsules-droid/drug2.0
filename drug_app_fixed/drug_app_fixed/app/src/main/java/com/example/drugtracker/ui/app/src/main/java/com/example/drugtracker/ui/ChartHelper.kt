@@ -17,25 +17,25 @@ import java.util.*
 object ChartHelper {
 
     private val drugColors = mapOf(
-        "草酸艾司西酞普兰" to Color.parseColor("#FF6B6B"),
-        "拉莫三嗪" to Color.parseColor("#4ECDC4"),
-        "丁螺环酮" to Color.parseColor("#45B7D1"),
-        "优甲乐（左甲状腺素）" to Color.parseColor("#FF1744"),
-        "加巴喷丁" to Color.parseColor("#96CEB4"),
-        "劳拉西泮" to Color.parseColor("#FFD93D"),
-        "酒石酸唑吡坦" to Color.parseColor("#DDA0DD"),
-        "右佐匹克隆" to Color.parseColor("#98D8C8"),
-        "布洛芬" to Color.parseColor("#F7DC6F"),
-        "对乙酰氨基酚" to Color.parseColor("#BB8FCE"),
-        "托莫西汀" to Color.parseColor("#85C1E9"),
-        "哌甲酯" to Color.parseColor("#F8C471"),
-        "咖啡因" to Color.parseColor("#82E0AA"),
-        "茶苯海明" to Color.parseColor("#F1948A"),
-        "褪黑素" to Color.parseColor("#A569BD"),
-        "茶氨酸" to Color.parseColor("#5DADE2"),
-        "苏糖酸镁" to Color.parseColor("#58D68D"),
-        "茴拉西坦" to Color.parseColor("#EC7063"),
-        "长春西汀" to Color.parseColor("#5499C7")
+        "草酸艾司西酞普兰"     to Color.parseColor("#FF6B6B"),
+        "拉莫三嗪"             to Color.parseColor("#4ECDC4"),
+        "丁螺环酮"             to Color.parseColor("#45B7D1"),
+        "优甲乐（左甲状腺素）"  to Color.parseColor("#FF1744"),
+        "加巴喷丁"             to Color.parseColor("#96CEB4"),
+        "劳拉西泮"             to Color.parseColor("#FFD93D"),
+        "酒石酸唑吡坦"         to Color.parseColor("#DDA0DD"),
+        "右佐匹克隆"           to Color.parseColor("#98D8C8"),
+        "布洛芬"               to Color.parseColor("#F7DC6F"),
+        "对乙酰氨基酚"         to Color.parseColor("#BB8FCE"),
+        "托莫西汀"             to Color.parseColor("#85C1E9"),
+        "哌甲酯"               to Color.parseColor("#F8C471"),
+        "咖啡因"               to Color.parseColor("#82E0AA"),
+        "茶苯海明"             to Color.parseColor("#F1948A"),
+        "褪黑素"               to Color.parseColor("#A569BD"),
+        "茶氨酸"               to Color.parseColor("#5DADE2"),
+        "苏糖酸镁"             to Color.parseColor("#58D68D"),
+        "茴拉西坦"             to Color.parseColor("#EC7063"),
+        "长春西汀"             to Color.parseColor("#5499C7")
     )
 
     private val fallbackColors = listOf(
@@ -86,14 +86,16 @@ object ChartHelper {
         val timePoints = generateTimePoints(startTimeMs, endTimeMs)
 
         drugs.forEachIndexed { index, drug ->
-            val drugRecords = records.filter { it.drugName == drug.name }
-            if (drugRecords.isEmpty()) return@forEachIndexed
+            if (records.none { it.drugName == drug.name }) return@forEachIndexed
+
+            // 使用含吸收相的浓度计算，图表曲线更真实
             val entries = timePoints.map { timeMs ->
-                Entry(
-                    (timeMs / (1000 * 60)).toFloat(),
-                    DrugCalculator.totalConcentrationPercent(records, drug, weightKg, timeMs).toFloat()
-                )
+                val pct = DrugCalculator.totalConcentrationPercent(
+                    records, drug, weightKg, timeMs
+                ).toFloat()
+                Entry((timeMs / (1000 * 60)).toFloat(), pct)
             }
+
             if (entries.any { it.y > 0.5f }) {
                 val color = getDrugColor(drug.name, index)
                 dataSets.add(LineDataSet(entries, drug.name).apply {
@@ -116,6 +118,8 @@ object ChartHelper {
             override fun getFormattedValue(value: Float): String =
                 sdf.format(Date(value.toLong() * 60 * 1000))
         }
+
+        // 现在竖线
         chart.xAxis.removeAllLimitLines()
         chart.xAxis.addLimitLine(LimitLine((nowMs / (1000 * 60)).toFloat(), "现在").apply {
             lineColor = Color.RED
@@ -124,6 +128,18 @@ object ChartHelper {
             textColor = Color.RED
             textSize = 10f
         })
+
+        // 100%参考线（一个剂量当量）
+        chart.axisLeft.removeAllLimitLines()
+        chart.axisLeft.addLimitLine(LimitLine(100f, "1个剂量").apply {
+            lineColor = Color.parseColor("#888888")
+            lineWidth = 1f
+            enableDashedLine(8f, 4f, 0f)
+            textColor = Color.parseColor("#888888")
+            textSize = 9f
+            labelPosition = LimitLine.LimitLabelPosition.RIGHT_TOP
+        })
+
         if (dataSets.isEmpty()) {
             chart.clear()
             chart.setNoDataText("该分类暂无记录")
@@ -144,10 +160,10 @@ object ChartHelper {
     }
 
     fun focusOnDrug(chart: LineChart, focusDrugName: String) {
-        chart.data?.dataSets?.forEachIndexed { _, dataSet ->
+        chart.data?.dataSets?.forEachIndexed { index, dataSet ->
             (dataSet as? LineDataSet)?.let { ds ->
                 if (ds.label == focusDrugName) { ds.lineWidth = 4f; ds.fillAlpha = 80 }
-                else { ds.lineWidth = 1f; ds.color = Color.argb(50, 180, 180, 180); ds.fillAlpha = 20 }
+                else { ds.lineWidth = 1f; ds.color = Color.argb(50, 180, 180, 180); ds.fillAlpha = 15 }
             }
         }
         chart.invalidate()
