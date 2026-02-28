@@ -23,7 +23,7 @@
             android:orientation="vertical"
             android:padding="12dp">
 
-            <!-- 优甲乐状态卡（默认隐藏，在代码中控制显示） -->
+            <!-- 优甲乐状态卡 -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/cardLevo"
                 android:layout_width="match_parent"
@@ -92,7 +92,6 @@
                 app:tabMode="scrollable"
                 app:tabGravity="start" />
 
-            <!-- 图表高度增大到320dp，并提示点击可全屏 -->
             <com.github.mikephil.charting.charts.LineChart
                 android:id="@+id/chart"
                 android:layout_width="match_parent"
@@ -150,7 +149,7 @@
                             android:hint="剂量"
                             android:inputType="numberDecimal" />
 
-                        <!-- MODIFIED: 将原来的固定文本改为动态TextView，并赋予id tvUnit -->
+                        <!-- 注意：这里添加了 ID -->
                         <TextView
                             android:id="@+id/tvUnit"
                             android:layout_width="wrap_content"
@@ -161,7 +160,6 @@
                             android:layout_gravity="center_vertical" />
                     </LinearLayout>
 
-                    <!-- 时间选择按钮 -->
                     <Button
                         android:id="@+id/btnSelectTime"
                         android:layout_width="match_parent"
