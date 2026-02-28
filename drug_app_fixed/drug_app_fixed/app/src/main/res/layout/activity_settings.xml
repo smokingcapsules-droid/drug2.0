@@ -24,7 +24,7 @@
             android:hint="体重 (kg)"
             android:inputType="numberDecimal" />
 
-        <!-- 新增：身高输入框 -->
+        <!-- 身高输入框 -->
         <EditText
             android:id="@+id/etHeight"
             android:layout_width="match_parent"
@@ -33,7 +33,7 @@
             android:hint="身高 (cm)"
             android:inputType="numberDecimal" />
 
-        <!-- 新增：体脂率输入框 -->
+        <!-- 体脂率输入框 -->
         <EditText
             android:id="@+id/etBodyFat"
             android:layout_width="match_parent"
