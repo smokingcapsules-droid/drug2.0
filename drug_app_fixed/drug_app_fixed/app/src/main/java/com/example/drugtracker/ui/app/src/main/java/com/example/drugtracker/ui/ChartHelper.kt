@@ -1,8 +1,8 @@
 package com.example.drugtracker.ui
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Color
-import android.util.TypedValue
 import com.example.drugtracker.data.DrugInfo
 import com.example.drugtracker.data.MedicationRecord
 import com.example.drugtracker.logic.DrugCalculator
@@ -49,43 +49,43 @@ object ChartHelper {
     fun getDrugColor(drugName: String, index: Int = 0): Int =
         drugColors[drugName] ?: fallbackColors[index % fallbackColors.size]
 
+    // 判断当前是否为深色模式
+    private fun isNightMode(context: Context): Boolean {
+        val nightMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        return nightMode == Configuration.UI_MODE_NIGHT_YES
+    }
+
     fun setupChart(chart: LineChart, context: Context, isFullscreen: Boolean = false) {
-        val typedValue = TypedValue()
-        context.theme.resolveAttribute(android.R.attr.textColorPrimary, typedValue, true)
-        val textColor = typedValue.data
+        // 根据模式决定文字颜色：夜间白色，日间黑色
+        val textColor = if (isNightMode(context)) Color.WHITE else Color.BLACK
 
-        // 禁用描述
-        chart.description.isEnabled = false
-        chart.setTouchEnabled(true)
-        chart.isDragEnabled = true
-        chart.setScaleEnabled(true)
-        chart.setPinchZoom(true)
-
-        // 图例
-        chart.legend.isEnabled = true
-        chart.legend.textSize = if (isFullscreen) 13f else 10f
-        chart.legend.textColor = textColor
-
-        // X轴
-        chart.xAxis.position = XAxis.XAxisPosition.BOTTOM
-        chart.xAxis.labelRotationAngle = -30f
-        chart.xAxis.setDrawGridLines(true)
-        chart.xAxis.granularity = 60f
-        chart.xAxis.textSize = 9f
-        chart.xAxis.textColor = textColor
-
-        // 左Y轴
-        chart.axisLeft.setDrawGridLines(true)
-        chart.axisLeft.axisMinimum = 0f
-        chart.axisLeft.textSize = 10f
-        chart.axisLeft.textColor = textColor
-
-        // 右Y轴禁用
-        chart.axisRight.isEnabled = false
-
-        // 无数据提示
-        chart.setNoDataText("暂无药物记录")
-        chart.setNoDataTextColor(textColor)
+        chart.apply {
+            description.isEnabled = false
+            setTouchEnabled(true)
+            isDragEnabled = true
+            setScaleEnabled(true)
+            setPinchZoom(true)
+            legend.isEnabled = true
+            legend.textSize = if (isFullscreen) 13f else 10f
+            legend.textColor = textColor
+            xAxis.apply {
+                position = XAxis.XAxisPosition.BOTTOM
+                labelRotationAngle = -30f
+                setDrawGridLines(true)
+                granularity = 60f
+                textSize = 9f
+                textColor = textColor
+            }
+            axisLeft.apply {
+                setDrawGridLines(true)
+                axisMinimum = 0f
+                textSize = 10f
+                textColor = textColor
+            }
+            axisRight.isEnabled = false
+            setNoDataText("暂无药物记录")
+            setNoDataTextColor(textColor)
+        }
     }
 
     fun updateChartData(
