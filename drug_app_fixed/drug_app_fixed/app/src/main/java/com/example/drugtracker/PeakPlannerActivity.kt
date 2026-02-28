@@ -105,7 +105,6 @@ class PeakPlannerActivity : AppCompatActivity() {
         viewModel.getRecordsForDrug(selectedDrug) { records ->
             runOnUiThread {
                 val nowMs = System.currentTimeMillis()
-                // 修改：使用新函数，传入 context 和 atTimeMs
                 val existingMg = DrugCalculator.totalRemainingMg(
                     records, drug, weightKg, bodyFat, takeAtMs
                 )
