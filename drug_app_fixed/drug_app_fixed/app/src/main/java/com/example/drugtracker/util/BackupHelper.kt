@@ -10,7 +10,6 @@ import java.io.IOException
 
 object BackupHelper {
 
-    // 导出为CSV
     suspend fun exportToCSV(context: Context): Uri? {
         return try {
             val db = AppDatabase.getDatabase(context)
@@ -30,7 +29,6 @@ object BackupHelper {
         }
     }
 
-    // 从CSV恢复
     suspend fun importFromCSV(context: Context, uri: Uri): Pair<Boolean, String> {
         return try {
             val inputStream = context.contentResolver.openInputStream(uri)
@@ -88,7 +86,6 @@ object BackupHelper {
         return result
     }
 
-    // 导出数据库文件
     fun exportDatabaseFile(context: Context): Uri? {
         val dbFile = context.getDatabasePath("drug_tracker_database")
         val exportFile = File(context.getExternalFilesDir(null),
@@ -102,28 +99,19 @@ object BackupHelper {
         }
     }
 
-    // 导入数据库文件（返回结果和消息）
     fun importDatabaseFile(context: Context, sourceUri: Uri): Pair<Boolean, String> {
         return try {
-            // 1. 关闭并重置数据库单例
             AppDatabase.closeAndNullify()
-
-            // 2. 获取目标数据库文件
             val dbFile = context.getDatabasePath("drug_tracker_database")
             if (!dbFile.exists()) {
                 dbFile.parentFile?.mkdirs()
             }
-
-            // 3. 复制文件
             context.contentResolver.openInputStream(sourceUri)?.use { input ->
                 dbFile.outputStream().use { output ->
                     input.copyTo(output)
                 }
             } ?: return Pair(false, "无法读取源文件")
-
-            // 4. 重新初始化数据库（下次调用 getDatabase 时会重建）
             AppDatabase.getDatabase(context)
-
             Pair(true, "数据库恢复成功，请完全重启应用")
         } catch (e: IOException) {
             CrashLogger.log("restore db failed", e)
