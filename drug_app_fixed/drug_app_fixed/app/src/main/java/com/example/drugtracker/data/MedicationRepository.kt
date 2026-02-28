@@ -6,28 +6,17 @@ class MedicationRepository(private val db: AppDatabase) {
     val allRecords = db.medicationDao().getAllRecords()
     val allCustomDrugs = db.customDrugDao().getAllCustomDrugs()
 
-    suspend fun addRecord(record: MedicationRecord): Long {
-        return db.medicationDao().insert(record)
-    }
+    suspend fun addRecord(record: MedicationRecord) = db.medicationDao().insert(record)
+    suspend fun deleteRecord(record: MedicationRecord) = db.medicationDao().delete(record)
+    suspend fun updateRecord(record: MedicationRecord) = db.medicationDao().update(record)
 
-    suspend fun deleteRecord(record: MedicationRecord) {
-        db.medicationDao().delete(record)
-    }
-
-    suspend fun getRecordsSince(startMs: Long): List<MedicationRecord> {
-        return db.medicationDao().getRecordsSince(startMs)
-    }
-
-    suspend fun getRecordsForDrug(name: String): List<MedicationRecord> {
-        return db.medicationDao().getRecordsForDrug(name)
-    }
+    suspend fun getRecordsSince(startMs: Long) = db.medicationDao().getRecordsSince(startMs)
+    suspend fun getRecordsForDrug(name: String) = db.medicationDao().getRecordsForDrug(name)
 
     suspend fun hasTodayRecord(drugName: String): Boolean {
-        val cal = Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Shanghai"))
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
+        val cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Shanghai"))
+        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
         return db.medicationDao().countTodayRecordsForDrug(drugName, cal.timeInMillis) > 0
     }
 
