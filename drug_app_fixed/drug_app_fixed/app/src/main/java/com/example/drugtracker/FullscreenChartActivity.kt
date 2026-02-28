@@ -44,7 +44,9 @@ class FullscreenChartActivity : AppCompatActivity() {
 
     private fun renderChart(records: List<MedicationRecord>, customDrugInfos: List<com.example.drugtracker.data.DrugInfo>) {
         val weightKg = UserPreferences.getWeightKg(this)
-        val bodyFat = UserPreferences.getBodyFatPercent(this) // 获取体脂率
+        val bodyFat = UserPreferences.getBodyFatPercent(this)
+        val therapyLow = UserPreferences.getTherapyWindowLow(this)
+        val therapyHigh = UserPreferences.getTherapyWindowHigh(this)
         val allDrugs = PresetDrugs.all + customDrugInfos
         val nowMs = System.currentTimeMillis()
 
@@ -57,10 +59,12 @@ class FullscreenChartActivity : AppCompatActivity() {
             records,
             drugsWithRecords,
             weightKg,
-            bodyFat, // 新增参数
+            bodyFat,
             nowMs - 24 * 60 * 60 * 1000L,
             nowMs + 3 * 24 * 60 * 60 * 1000L,
-            nowMs
+            nowMs,
+            therapyLow,
+            therapyHigh
         )
     }
 }
