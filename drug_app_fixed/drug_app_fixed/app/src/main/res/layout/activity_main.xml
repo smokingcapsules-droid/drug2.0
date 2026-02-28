@@ -150,7 +150,9 @@
                             android:hint="剂量"
                             android:inputType="numberDecimal" />
 
+                        <!-- MODIFIED: 将原来的固定文本改为动态TextView，并赋予id tvUnit -->
                         <TextView
+                            android:id="@+id/tvUnit"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="mg"
