@@ -265,13 +265,12 @@ class MainActivity : AppCompatActivity() {
                 Cfg(withRecords, nowMs - 24 * 3600_000L, nowMs + 3 * 24 * 3600_000L)
             }
         }
-        // 修正：添加 bodyFat 参数
         ChartHelper.updateChartData(
             binding.chart,
             currentRecords,
             cfg.drugs,
             weightKg,
-            bodyFat, // 新增参数
+            bodyFat,
             cfg.start,
             cfg.end,
             nowMs
