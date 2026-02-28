@@ -2,15 +2,15 @@ package com.example.drugtracker.data
 
 object PresetDrugs {
     val all = listOf(
-        // 维持类（每日固定服用）
-        DrugInfo(1,  "草酸艾司西酞普兰",    30.0,  4.0,  "mg",  false, true,  false, 10.0,  "每日10mg，早餐后"),
+        // 维持类
+        DrugInfo(1,  "草酸艾司西酞普兰",    30.0,  4.0,  "mg",  false, true,  false, 10.0,  "每日10mg"),
         DrugInfo(2,  "拉莫三嗪",            25.0,  2.5,  "mg",  false, true,  false, 75.0,  "每日75mg"),
-        DrugInfo(3,  "丁螺环酮",             1.5,  1.0,  "mg",  false, false, false, 10.0,  "每次10mg，每日2次"),
-        DrugInfo(4,  "优甲乐（左甲状腺素）",144.0,  3.0,  "μg",  false, true,  false, 100.0, "每日，空腹服用"),
+        DrugInfo(3,  "丁螺环酮",             1.5,  1.0,  "mg",  false, false, false, 10.0,  "每次10mg"),
+        DrugInfo(4,  "优甲乐（左甲状腺素）",144.0,  3.0,  "μg",  false, true,  false, 150.0, "每日150μg，空腹"),
         DrugInfo(5,  "苏糖酸镁",            12.0,  2.0,  "mg",  false, false, false, 144.0, "每日"),
-        // 功能性（按需）
+        // 功能性
         DrugInfo(6,  "加巴喷丁",             6.0,  3.0,  "mg",  false, false, false, 300.0, "按需"),
-        DrugInfo(7,  "劳拉西泮",            15.0,  2.0,  "mg",  true,  false, false, 0.5,   "按需，0.5-1mg"),
+        DrugInfo(7,  "劳拉西泮",            15.0,  2.0,  "mg",  true,  false, false, 0.5,   "按需 0.5-1mg"),
         DrugInfo(8,  "酒石酸唑吡坦",         2.4,  1.5,  "mg",  true,  false, false, 5.0,   "睡前"),
         DrugInfo(9,  "右佐匹克隆",           6.0,  1.0,  "mg",  true,  false, false, 1.5,   "睡前1.5mg"),
         DrugInfo(10, "布洛芬",               2.0,  1.5,  "mg",  false, false, false, 400.0, "按需"),
@@ -37,3 +37,4 @@ object PresetDrugs {
         "草酸艾司西酞普兰","拉莫三嗪","优甲乐（左甲状腺素）","丁螺环酮","苏糖酸镁"
     ).mapNotNull { findByName(it) }
 }
+
