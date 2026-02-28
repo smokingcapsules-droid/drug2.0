@@ -13,7 +13,6 @@ import java.util.concurrent.TimeUnit
 
 object ReminderEngine {
 
-    // 为某药物重新计算并调度下次提醒
     suspend fun rescheduleForDrug(
         context: Context,
         drugName: String,
@@ -24,26 +23,26 @@ object ReminderEngine {
                 ?.toDrugInfo() ?: return
 
         val weightKg = UserPreferences.getWeightKg(context)
+        val bodyFat = UserPreferences.getBodyFatPercent(context)
         val threshold = UserPreferences.getReminderThreshold(context)
         val advanceMinutes = 60L
 
         val records = repository.getRecordsForDrug(drugName)
         if (records.isEmpty()) return
 
-        val halfLife = DrugCalculator.adjustedHalfLife(drug, weightKg)
         val nowMs = System.currentTimeMillis()
 
-        // 从现在起逐步扫描未来浓度，找到降至阈值的时间点
         var dropTimeMs: Long? = null
         var scanMs = nowMs
-        val stepMs = 15 * 60 * 1000L  // 每15分钟一个点
+        val stepMs = 15 * 60 * 1000L
 
-        val currentConc = DrugCalculator.totalConcentrationPercent(records, drug, weightKg, nowMs)
-        if (currentConc < threshold) return  // 当前已低于阈值，不需要提醒
+        // 修改：使用新函数，传入 context 和 atTimeMs
+        val currentConc = DrugCalculator.totalConcentrationPercent(records, drug, weightKg, bodyFat, nowMs)
+        if (currentConc < threshold) return
 
-        repeat(200) {  // 最多扫描200个点（50小时）
+        repeat(200) {
             scanMs += stepMs
-            val conc = DrugCalculator.totalConcentrationPercent(records, drug, weightKg, scanMs)
+            val conc = DrugCalculator.totalConcentrationPercent(records, drug, weightKg, bodyFat, scanMs)
             if (conc < threshold && dropTimeMs == null) {
                 dropTimeMs = scanMs
             }
@@ -57,7 +56,6 @@ object ReminderEngine {
         }
     }
 
-    // 调度一次性提醒 WorkManager 任务
     private fun scheduleOneTimeReminder(
         context: Context,
         drugName: String,
@@ -78,12 +76,10 @@ object ReminderEngine {
             .addTag("reminder_$drugName")
             .build()
 
-        // 取消该药物的旧提醒，设置新提醒
         WorkManager.getInstance(context).cancelAllWorkByTag("reminder_$drugName")
         WorkManager.getInstance(context).enqueue(request)
     }
 
-    // 优甲乐每日提醒（每天调度一次）
     fun scheduleLevothyroxineDaily(context: Context) {
         val hour = UserPreferences.getLevothyroxineReminderHour(context)
 
@@ -106,7 +102,6 @@ object ReminderEngine {
         WorkManager.getInstance(context).enqueue(request)
     }
 
-    // 重启后恢复所有提醒（在 BootReceiver 中调用）
     fun restoreAllReminders(context: Context) {
         val scope = CoroutineScope(Dispatchers.IO)
         scope.launch {
