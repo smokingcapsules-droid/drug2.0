@@ -149,7 +149,6 @@
                             android:hint="剂量"
                             android:inputType="numberDecimal" />
 
-                        <!-- 注意：这里添加了 ID -->
                         <TextView
                             android:id="@+id/tvUnit"
                             android:layout_width="wrap_content"
