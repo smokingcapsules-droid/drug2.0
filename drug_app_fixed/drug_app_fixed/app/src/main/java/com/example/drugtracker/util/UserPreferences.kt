@@ -29,7 +29,16 @@ object UserPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit().putFloat("body_fat_percent", bodyFat.toFloat()).apply()
 
-    // 治疗窗上下限（单位：浓度百分比或实际浓度？这里我们使用百分比，以便与图表纵轴一致）
+    // TSH目标
+    fun getTSHTarget(context: Context): Double =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getFloat("tsh_target", 0.1f).toDouble()
+
+    fun setTSHTarget(context: Context, target: Double) =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putFloat("tsh_target", target.toFloat()).apply()
+
+    // 治疗窗上下限（百分比）
     fun getTherapyWindowLow(context: Context): Float =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getFloat("therapy_window_low", 0f)
