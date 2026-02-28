@@ -30,7 +30,7 @@ class FullscreenChartActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         viewModel = ViewModelProvider(this)[MedicationViewModel::class.java]
-        // 修改：传递 context 参数
+        // 修改：传递 context 和 isFullscreen
         ChartHelper.setupChart(binding.chart, this, true)
 
         binding.btnClose.setOnClickListener { finish() }
