@@ -19,36 +19,28 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun addRecord(record: MedicationRecord) = viewModelScope.launch {
-        val id = repository.addRecord(record)
-        // 添加记录后，重新调度提醒
-        ReminderEngine.rescheduleForDrug(
-            getApplication(), record.drugName, repository
-        )
+        repository.addRecord(record)
+        ReminderEngine.rescheduleForDrug(getApplication(), record.drugName, repository)
     }
 
     fun deleteRecord(record: MedicationRecord) = viewModelScope.launch {
         repository.deleteRecord(record)
     }
 
+    // 事后修改备注
+    fun updateRecord(record: MedicationRecord) = viewModelScope.launch {
+        repository.updateRecord(record)
+    }
+
     fun getRecordsSince(startMs: Long, callback: (List<MedicationRecord>) -> Unit) = viewModelScope.launch {
-        val records = repository.getRecordsSince(startMs)
-        callback(records)
+        callback(repository.getRecordsSince(startMs))
     }
 
     fun getRecordsForDrug(name: String, callback: (List<MedicationRecord>) -> Unit) = viewModelScope.launch {
-        val records = repository.getRecordsForDrug(name)
-        callback(records)
+        callback(repository.getRecordsForDrug(name))
     }
 
-    fun addCustomDrug(drug: CustomDrug) = viewModelScope.launch {
-        repository.addCustomDrug(drug)
-    }
-
-    fun updateCustomDrug(drug: CustomDrug) = viewModelScope.launch {
-        repository.updateCustomDrug(drug)
-    }
-
-    fun deleteCustomDrug(drug: CustomDrug) = viewModelScope.launch {
-        repository.deleteCustomDrug(drug)
-    }
+    fun addCustomDrug(drug: CustomDrug) = viewModelScope.launch { repository.addCustomDrug(drug) }
+    fun updateCustomDrug(drug: CustomDrug) = viewModelScope.launch { repository.updateCustomDrug(drug) }
+    fun deleteCustomDrug(drug: CustomDrug) = viewModelScope.launch { repository.deleteCustomDrug(drug) }
 }
