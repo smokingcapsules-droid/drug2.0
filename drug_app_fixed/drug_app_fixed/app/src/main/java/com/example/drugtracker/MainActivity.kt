@@ -2,7 +2,6 @@ package com.example.drugtracker
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -39,10 +38,8 @@ class MainActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private val refreshRunnable = object : Runnable {
         override fun run() {
-            // 刷新活跃药物列表和图表
             updateActiveDrugsCard(currentRecords)
             updateChartForTab(binding.tabLayout.selectedTabPosition)
-            // 每分钟刷新一次
             handler.postDelayed(this, 60_000)
         }
     }
@@ -64,13 +61,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 启动定时器
         handler.post(refreshRunnable)
     }
 
     override fun onPause() {
         super.onPause()
-        // 停止定时器
         handler.removeCallbacks(refreshRunnable)
     }
 
@@ -123,10 +118,7 @@ class MainActivity : AppCompatActivity() {
                 selectedDrug = parent?.getItemAtPosition(position).toString()
                 currentDrugInfo = PresetDrugs.findByName(selectedDrug)
                     ?: viewModel.allCustomDrugs.value?.find { it.name == selectedDrug }?.toDrugInfo()
-
-                // 更新剂量单位显示
                 binding.tvUnit.text = currentDrugInfo?.unit ?: "mg"
-                // 自动填充默认剂量（原始值，如150μg直接显示150）
                 currentDrugInfo?.defaultDose?.let { binding.etDose.setText(it.toString()) }
             }
 
@@ -148,7 +140,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupChart() {
-        // 修改：传递 context 参数
+        // 修改：传递 context
         ChartHelper.setupChart(binding.chart, this)
         binding.chart.setOnClickListener {
             startActivity(Intent(this, FullscreenChartActivity::class.java))
@@ -180,29 +172,19 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // 剂量转换：若药物单位是μg，输入值除以1000转换为毫克
-        val doseMg = if (drug.unit == "μg") {
-            doseInput / 1000.0
-        } else {
-            doseInput
-        }
+        val doseMg = if (drug.unit == "μg") doseInput / 1000.0 else doseInput
 
         val record = MedicationRecord(
             drugName = selectedDrug,
             doseMg = doseMg,
-            unit = "mg", // 统一存储为mg
+            unit = "mg",
             takenAtMs = selectedTimeMs,
             notes = binding.etNotes.text.toString().trim()
         )
 
         viewModel.addRecord(record)
 
-        // 提示信息显示用户输入值和原始单位
-        Toast.makeText(
-            this,
-            "✓ 已记录 $selectedDrug $doseInput${drug.unit}",
-            Toast.LENGTH_SHORT
-        ).show()
+        Toast.makeText(this, "✓ 已记录 $selectedDrug $doseInput${drug.unit}", Toast.LENGTH_SHORT).show()
 
         binding.etNotes.text?.clear()
         selectedTimeMs = System.currentTimeMillis()
@@ -248,17 +230,14 @@ class MainActivity : AppCompatActivity() {
         active.take(8).forEach { (drug, pct) ->
             val advice = DrugCalculator.getDoseAdvice(records, drug, this, nowMs)
 
-            // 计算条形图
             val barLen = (pct / 10).toInt().coerceIn(0, 10)
             val bar = "█".repeat(barLen) + "░".repeat(10 - barLen)
 
-            // 单位转换：如果药物单位是μg，将mg值转换为μg显示
             val unitFactor = if (drug.unit == "μg") 1000.0 else 1.0
             val remainingDisplay = advice.remainingMg * unitFactor
             val standardDoseDisplay = advice.standardDose * unitFactor
             val suggestedDisplay = advice.suggestedDose * unitFactor
 
-            // 对于按需药物，判断当前是否在吸收阶段
             val isAbsorbing = if (!advice.isMaintenance) {
                 val lastRecord = records.filter { it.drugName == drug.name }.maxByOrNull { it.takenAtMs }
                 if (lastRecord != null) {
@@ -268,17 +247,14 @@ class MainActivity : AppCompatActivity() {
             } else false
 
             if (advice.isMaintenance) {
-                // 维持类：显示稳态达成度
                 val ssStr = String.format("%.0f", advice.steadyStatePercent)
                 sb.appendLine(drug.name)
                 sb.appendLine("  $bar 稳态${ssStr}%  剩${String.format("%.1f", remainingDisplay)}${drug.unit}")
                 sb.appendLine("  → 按处方服用 ${String.format("%.1f", standardDoseDisplay)}${drug.unit}")
             } else {
-                // 按需类：根据吸收/消除阶段显示不同文案
                 if (isAbsorbing) {
                     sb.appendLine(drug.name)
                     sb.appendLine("  $bar 吸收中 ${String.format("%.0f", pct)}%  当前 ${String.format("%.2f", remainingDisplay)}${drug.unit}（上升中）")
-                    // 吸收阶段不显示补充建议
                 } else {
                     val warn = if (advice.isAccumulated) " ⚠积累" else ""
                     sb.appendLine(drug.name)
@@ -306,8 +282,7 @@ class MainActivity : AppCompatActivity() {
 
         val cfg = when (tabPosition) {
             0 -> {
-                val activeDrugs = DrugCalculator.getActiveDrugs(currentRecords, allDrugs, this, nowMs)
-                    .map { it.first }
+                val activeDrugs = DrugCalculator.getActiveDrugs(currentRecords, allDrugs, this, nowMs).map { it.first }
                 Cfg(activeDrugs, nowMs - 6 * 3600_000L, nowMs + 18 * 3600_000L)
             }
             1 -> Cfg(PresetDrugs.getFunctionalDrugs(), nowMs - 6 * 3600_000L, nowMs + 24 * 3600_000L)
