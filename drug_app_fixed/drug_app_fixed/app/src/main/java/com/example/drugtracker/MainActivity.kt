@@ -247,6 +247,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateChartForTab(tabPosition: Int) {
         val weightKg = UserPreferences.getWeightKg(this)
+        val bodyFat = UserPreferences.getBodyFatPercent(this) // 获取体脂率
         val nowMs = System.currentTimeMillis()
         val allDrugs = PresetDrugs.all + (viewModel.allCustomDrugs.value?.map { it.toDrugInfo() } ?: emptyList())
         data class Cfg(val drugs: List<DrugInfo>, val start: Long, val end: Long)
@@ -264,6 +265,16 @@ class MainActivity : AppCompatActivity() {
                 Cfg(withRecords, nowMs - 24 * 3600_000L, nowMs + 3 * 24 * 3600_000L)
             }
         }
-        ChartHelper.updateChartData(binding.chart, currentRecords, cfg.drugs, weightKg, cfg.start, cfg.end, nowMs)
+        // 修正：添加 bodyFat 参数
+        ChartHelper.updateChartData(
+            binding.chart,
+            currentRecords,
+            cfg.drugs,
+            weightKg,
+            bodyFat, // 新增参数
+            cfg.start,
+            cfg.end,
+            nowMs
+        )
     }
 }
