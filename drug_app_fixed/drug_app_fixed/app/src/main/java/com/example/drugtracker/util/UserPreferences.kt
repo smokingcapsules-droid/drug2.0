@@ -29,6 +29,15 @@ object UserPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit().putFloat("body_fat_percent", bodyFat.toFloat()).apply()
 
+    // 新增：TSH目标（mU/L），默认0.1（高危患者常用）
+    fun getTSHTarget(context: Context): Double =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getFloat("tsh_target", 0.1f).toDouble()
+
+    fun setTSHTarget(context: Context, target: Double) =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putFloat("tsh_target", target.toFloat()).apply()
+
     fun getReminderThreshold(context: Context): Double =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getFloat("reminder_threshold", 30f).toDouble()
