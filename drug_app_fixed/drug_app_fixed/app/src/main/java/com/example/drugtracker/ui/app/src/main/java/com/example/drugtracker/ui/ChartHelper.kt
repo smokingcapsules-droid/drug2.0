@@ -81,7 +81,9 @@ object ChartHelper {
         bodyFatPercent: Double,
         startTimeMs: Long,
         endTimeMs: Long,
-        nowMs: Long = System.currentTimeMillis()
+        nowMs: Long = System.currentTimeMillis(),
+        therapyLow: Float = 0f,   // 治疗窗下限 (mg)
+        therapyHigh: Float = 0f    // 治疗窗上限 (mg)
     ) {
         val dataSets = mutableListOf<LineDataSet>()
         val timePoints = generateTimePoints(startTimeMs, endTimeMs)
@@ -119,7 +121,11 @@ object ChartHelper {
                 sdf.format(Date(value.toLong() * 60 * 1000))
         }
 
+        // 清除旧的限制线
         chart.xAxis.removeAllLimitLines()
+        chart.axisLeft.removeAllLimitLines()
+
+        // 添加“现在”竖线
         chart.xAxis.addLimitLine(LimitLine((nowMs / (1000 * 60)).toFloat(), "现在").apply {
             lineColor = Color.RED
             lineWidth = 1.5f
@@ -128,7 +134,29 @@ object ChartHelper {
             textSize = 10f
         })
 
-        chart.axisLeft.removeAllLimitLines()
+        // 添加治疗窗上下限（如果设置了）
+        if (therapyLow > 0) {
+            chart.axisLeft.addLimitLine(LimitLine(therapyLow, "治疗窗下限").apply {
+                lineColor = Color.parseColor("#00AA00")
+                lineWidth = 1f
+                enableDashedLine(8f, 4f, 0f)
+                textColor = Color.parseColor("#00AA00")
+                textSize = 9f
+                labelPosition = LimitLine.LimitLabelPosition.RIGHT_TOP
+            })
+        }
+        if (therapyHigh > 0) {
+            chart.axisLeft.addLimitLine(LimitLine(therapyHigh, "治疗窗上限").apply {
+                lineColor = Color.parseColor("#00AA00")
+                lineWidth = 1f
+                enableDashedLine(8f, 4f, 0f)
+                textColor = Color.parseColor("#00AA00")
+                textSize = 9f
+                labelPosition = LimitLine.LimitLabelPosition.RIGHT_BOTTOM
+            })
+        }
+
+        // 原有的“1个剂量”线可以保留作为参考，但可能会与治疗窗混淆。我们暂时保留，也可以移除。
         chart.axisLeft.addLimitLine(LimitLine(100f, "1个剂量").apply {
             lineColor = Color.parseColor("#888888")
             lineWidth = 1f
