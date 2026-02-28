@@ -19,11 +19,13 @@ object PeakPlanner {
         targetTimeMs: Long,
         targetConcentrationMg: Double,
         weightKg: Double,
+        bodyFatPercent: Double,
         existingRecords: List<MedicationRecord>
     ): DosePlan? {
-        val halfLife = DrugCalculator.adjustedHalfLife(drug, weightKg)
-        val existingAmount = DrugCalculator.totalConcentrationMg(
-            existingRecords, drug, weightKg, targetTimeMs
+        val halfLife = DrugCalculator.adjustedHalfLife(drug, weightKg, bodyFatPercent)
+        // 使用 totalRemainingMg 而不是 totalConcentrationMg（已不存在）
+        val existingAmount = DrugCalculator.totalRemainingMg(
+            existingRecords, drug, weightKg, bodyFatPercent, targetTimeMs
         )
         val neededAmount = maxOf(0.0, targetConcentrationMg - existingAmount)
         if (neededAmount <= 0) return null
