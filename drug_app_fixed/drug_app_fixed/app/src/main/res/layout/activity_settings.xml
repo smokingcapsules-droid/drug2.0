@@ -24,7 +24,6 @@
             android:hint="体重 (kg)"
             android:inputType="numberDecimal" />
 
-        <!-- 身高输入框 -->
         <EditText
             android:id="@+id/etHeight"
             android:layout_width="match_parent"
@@ -33,7 +32,6 @@
             android:hint="身高 (cm)"
             android:inputType="numberDecimal" />
 
-        <!-- 体脂率输入框 -->
         <EditText
             android:id="@+id/etBodyFat"
             android:layout_width="match_parent"
@@ -42,15 +40,33 @@
             android:hint="体脂率 (%)"
             android:inputType="numberDecimal" />
 
-        <!-- 在体脂率输入框之后，提醒阈值之前添加 -->
+        <!-- TSH目标 -->
         <EditText
             android:id="@+id/etTSHTarget"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="TSH 目标值 (mU/L，例如 0.1)"
+            android:hint="TSH目标 (mU/L, 例如 0.1)"
             android:inputType="numberDecimal" />
-       
+
+        <!-- 治疗窗下限 -->
+        <EditText
+            android:id="@+id/etTherapyLow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="治疗窗下限 (mg, 0为禁用)"
+            android:inputType="numberDecimal" />
+
+        <!-- 治疗窗上限 -->
+        <EditText
+            android:id="@+id/etTherapyHigh"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="治疗窗上限 (mg, 0为禁用)"
+            android:inputType="numberDecimal" />
+
         <EditText
             android:id="@+id/etThreshold"
             android:layout_width="match_parent"
