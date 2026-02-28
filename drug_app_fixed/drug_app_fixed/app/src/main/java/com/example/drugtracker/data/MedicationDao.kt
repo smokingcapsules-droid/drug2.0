@@ -17,6 +17,12 @@ interface MedicationDao {
     @Query("SELECT * FROM medication_records ORDER BY takenAtMs DESC")
     fun getAllRecords(): LiveData<List<MedicationRecord>>
 
+    @Query("SELECT * FROM medication_records ORDER BY takenAtMs DESC")
+    suspend fun getAllRecordsSync(): List<MedicationRecord>
+
+    @Query("DELETE FROM medication_records")
+    suspend fun deleteAll()
+
     @Query("SELECT * FROM medication_records WHERE takenAtMs >= :startMs ORDER BY takenAtMs ASC")
     suspend fun getRecordsSince(startMs: Long): List<MedicationRecord>
 
