@@ -53,7 +53,24 @@ object ChartHelper {
         (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
 
     fun setupChart(chart: LineChart, context: Context, isFullscreen: Boolean = false) {
-        val textColor = if (isNightMode(context)) Color.WHITE else Color.BLACK
+        // 全屏图表背景始终是黑色，所以文字始终用白色
+        // 普通图表根据日/夜间模式设置背景和文字颜色
+        val nightMode = isNightMode(context)
+        val textColor: Int
+        if (isFullscreen) {
+            // 全屏背景是黑色，文字固定用白色
+            textColor = Color.WHITE
+            chart.setBackgroundColor(Color.BLACK)
+        } else {
+            // 普通图表：明确设置背景色，确保和文字形成对比
+            if (nightMode) {
+                textColor = Color.WHITE
+                chart.setBackgroundColor(Color.parseColor("#1E1E1E"))
+            } else {
+                textColor = Color.parseColor("#212121") // 深灰，比纯黑更易读
+                chart.setBackgroundColor(Color.WHITE)
+            }
+        }
 
         chart.description.isEnabled = false
         chart.setTouchEnabled(true)
@@ -134,39 +151,39 @@ object ChartHelper {
         chart.axisLeft.removeAllLimitLines()
 
         chart.xAxis.addLimitLine(LimitLine((nowMs / (1000 * 60)).toFloat(), "现在").apply {
-            lineColor = Color.RED
+            lineColor = Color.parseColor("#FF4444")
             lineWidth = 1.5f
             enableDashedLine(10f, 5f, 0f)
-            textColor = Color.RED
+            textColor = Color.parseColor("#FF4444")
             textSize = 10f
         })
 
         if (therapyLow > 0) {
             chart.axisLeft.addLimitLine(LimitLine(therapyLow, "治疗窗下限").apply {
-                lineColor = Color.parseColor("#00AA00")
+                lineColor = Color.parseColor("#00CC00")
                 lineWidth = 1f
                 enableDashedLine(8f, 4f, 0f)
-                textColor = Color.parseColor("#00AA00")
+                textColor = Color.parseColor("#00CC00")
                 textSize = 9f
                 labelPosition = LimitLine.LimitLabelPosition.RIGHT_TOP
             })
         }
         if (therapyHigh > 0) {
             chart.axisLeft.addLimitLine(LimitLine(therapyHigh, "治疗窗上限").apply {
-                lineColor = Color.parseColor("#00AA00")
+                lineColor = Color.parseColor("#00CC00")
                 lineWidth = 1f
                 enableDashedLine(8f, 4f, 0f)
-                textColor = Color.parseColor("#00AA00")
+                textColor = Color.parseColor("#00CC00")
                 textSize = 9f
                 labelPosition = LimitLine.LimitLabelPosition.RIGHT_BOTTOM
             })
         }
 
         chart.axisLeft.addLimitLine(LimitLine(100f, "1个剂量").apply {
-            lineColor = Color.parseColor("#888888")
+            lineColor = Color.parseColor("#AAAAAA")
             lineWidth = 1f
             enableDashedLine(8f, 4f, 0f)
-            textColor = Color.parseColor("#888888")
+            textColor = Color.parseColor("#AAAAAA")
             textSize = 9f
             labelPosition = LimitLine.LimitLabelPosition.RIGHT_TOP
         })
