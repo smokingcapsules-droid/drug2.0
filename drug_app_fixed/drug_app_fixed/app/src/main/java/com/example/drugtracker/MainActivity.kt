@@ -2,12 +2,12 @@ package com.example.drugtracker
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
@@ -31,7 +31,7 @@ class MainActivity : AppCompatActivity() {
     private var selectedDrug: String = ""
     private var currentRecords: List<MedicationRecord> = emptyList()
     private var selectedTimeMs: Long = System.currentTimeMillis()
-    private var currentDrugInfo: DrugInfo? = null // 当前选中的药物信息
+    private var currentDrugInfo: DrugInfo? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,9 +98,9 @@ class MainActivity : AppCompatActivity() {
                 currentDrugInfo = PresetDrugs.findByName(selectedDrug)
                     ?: viewModel.allCustomDrugs.value?.find { it.name == selectedDrug }?.toDrugInfo()
 
-                // 更新剂量输入框的提示单位
+                // 更新剂量单位显示
                 binding.tvUnit.text = currentDrugInfo?.unit ?: "mg"
-                // 自动填充默认剂量（保持原始数值，不转换）
+                // 自动填充默认剂量（原始值，如150μg直接显示150）
                 currentDrugInfo?.defaultDose?.let { binding.etDose.setText(it.toString()) }
             }
 
@@ -148,20 +148,18 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // 获取当前药物信息
         val drug = currentDrugInfo ?: run {
             Toast.makeText(this, "药物信息获取失败", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // 根据药物单位将用户输入转换为毫克（mg）
+        // 剂量转换：若药物单位是μg，输入值除以1000转换为毫克
         val doseMg = if (drug.unit == "μg") {
             doseInput / 1000.0
         } else {
             doseInput
         }
 
-        // 创建记录
         val record = MedicationRecord(
             drugName = selectedDrug,
             doseMg = doseMg,
@@ -172,14 +170,13 @@ class MainActivity : AppCompatActivity() {
 
         viewModel.addRecord(record)
 
-        // 显示成功提示（使用药物原始单位）
+        // 提示信息显示用户输入值和原始单位
         Toast.makeText(
             this,
             "✓ 已记录 $selectedDrug $doseInput${drug.unit}",
             Toast.LENGTH_SHORT
         ).show()
 
-        // 清空备注，重置时间为现在
         binding.etNotes.text?.clear()
         selectedTimeMs = System.currentTimeMillis()
         updateTimeButtonText()
@@ -193,7 +190,6 @@ class MainActivity : AppCompatActivity() {
             updateChartForTab(binding.tabLayout.selectedTabPosition)
         }
         viewModel.allCustomDrugs.observe(this) {
-            // 自定义药物变化时，可能影响药物列表和计算，但无需重复更新记录
             updateActiveDrugsCard(currentRecords)
             updateChartForTab(binding.tabLayout.selectedTabPosition)
         }
@@ -212,10 +208,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateActiveDrugsCard(records: List<MedicationRecord>) {
-        val weightKg = UserPreferences.getWeightKg(this)
         val allDrugs = PresetDrugs.all + (viewModel.allCustomDrugs.value?.map { it.toDrugInfo() } ?: emptyList())
         val nowMs = System.currentTimeMillis()
-        val active = DrugCalculator.getActiveDrugs(records, allDrugs, weightKg, nowMs)
+        val active = DrugCalculator.getActiveDrugs(records, allDrugs, this, nowMs)
 
         if (active.isEmpty()) {
             binding.tvActiveDrugs.text = "暂无活跃药物"
@@ -224,7 +219,7 @@ class MainActivity : AppCompatActivity() {
 
         val sb = StringBuilder()
         active.take(8).forEach { (drug, pct) ->
-            val advice = DrugCalculator.getDoseAdvice(records, drug, weightKg, nowMs)
+            val advice = DrugCalculator.getDoseAdvice(records, drug, this, nowMs)
             val barLen = (pct / 10).toInt().coerceIn(0, 10)
             val bar = "█".repeat(barLen) + "░".repeat(10 - barLen)
 
@@ -258,7 +253,7 @@ class MainActivity : AppCompatActivity() {
 
         val cfg = when (tabPosition) {
             0 -> {
-                val activeDrugs = DrugCalculator.getActiveDrugs(currentRecords, allDrugs, weightKg, nowMs)
+                val activeDrugs = DrugCalculator.getActiveDrugs(currentRecords, allDrugs, this, nowMs)
                     .map { it.first }
                 Cfg(activeDrugs, nowMs - 6 * 3600_000L, nowMs + 18 * 3600_000L)
             }
