@@ -15,20 +15,16 @@ import com.example.drugtracker.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
 
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySettingsBinding
 
-    // MODIFIED: 文件选择器改为支持所有文件类型 (*/*)
+    // 文件选择器：支持所有文件类型
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri != null) {
-            // 申请持久化权限（Android 10+ 必需）
             contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             doRestoreFile(uri)
         } else {
@@ -48,6 +44,8 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun loadSettings() {
         binding.etWeight.setText(UserPreferences.getWeightKg(this).toString())
+        binding.etHeight.setText(UserPreferences.getHeightCm(this).toString())   // 新增
+        binding.etBodyFat.setText(UserPreferences.getBodyFatPercent(this).toString()) // 新增
         binding.etThreshold.setText(UserPreferences.getReminderThreshold(this).toString())
         binding.etLevoHour.setText(UserPreferences.getLevothyroxineReminderHour(this).toString())
     }
@@ -57,23 +55,32 @@ class SettingsActivity : AppCompatActivity() {
         binding.btnExportLog.setOnClickListener { exportCrashLog() }
         binding.btnClearLog.setOnClickListener { clearCrashLog() }
         binding.btnBackup.setOnClickListener { backupCSV() }
-        binding.btnRestore.setOnClickListener { startFileRestore() } // MODIFIED: 方法名变更
+        binding.btnRestore.setOnClickListener { startFileRestore() }
     }
 
     private fun saveSettings() {
         val weight = binding.etWeight.text.toString().toDoubleOrNull()
+        val height = binding.etHeight.text.toString().toDoubleOrNull()   // 新增
+        val bodyFat = binding.etBodyFat.text.toString().toDoubleOrNull() // 新增
         val threshold = binding.etThreshold.text.toString().toDoubleOrNull()
         val levoHour = binding.etLevoHour.text.toString().toIntOrNull()
+
         if (weight == null || weight <= 0) { Toast.makeText(this, "体重无效", Toast.LENGTH_SHORT).show(); return }
+        if (height == null || height <= 0) { Toast.makeText(this, "身高无效", Toast.LENGTH_SHORT).show(); return }
+        if (bodyFat == null || bodyFat < 0 || bodyFat > 100) { Toast.makeText(this, "体脂率需在0-100之间", Toast.LENGTH_SHORT).show(); return }
         if (threshold == null) { Toast.makeText(this, "阈值无效", Toast.LENGTH_SHORT).show(); return }
         if (levoHour == null || levoHour !in 0..23) { Toast.makeText(this, "小时需在0-23之间", Toast.LENGTH_SHORT).show(); return }
+
         UserPreferences.setWeightKg(this, weight)
+        UserPreferences.setHeightCm(this, height)
+        UserPreferences.setBodyFatPercent(this, bodyFat)
         UserPreferences.setReminderThreshold(this, threshold)
         UserPreferences.setLevothyroxineReminderHour(this, levoHour)
+
         Toast.makeText(this, "✓ 已保存", Toast.LENGTH_SHORT).show()
     }
 
-    // ── CSV备份 ────────────────────────────────────────────
+    // CSV备份
     private fun backupCSV() {
         lifecycleScope.launch {
             val uri = BackupHelper.exportToCSV(this@SettingsActivity)
@@ -85,19 +92,18 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    // MODIFIED: 恢复入口，允许选择任意文件
+    // 恢复入口（支持CSV和DB）
     private fun startFileRestore() {
         AlertDialog.Builder(this)
             .setTitle("恢复数据")
             .setMessage("请选择备份文件（.csv 或 .db）\n\n• CSV：从记录恢复\n• DB：直接替换数据库（需重启应用）")
             .setPositiveButton("选择文件") { _, _ ->
-                filePickerLauncher.launch(arrayOf("*/*")) // 允许所有文件类型
+                filePickerLauncher.launch(arrayOf("*/*"))
             }
             .setNegativeButton("取消", null)
             .show()
     }
 
-    // MODIFIED: 根据文件扩展名分流恢复
     private fun doRestoreFile(uri: Uri) {
         val fileName = getFileName(uri) ?: "unknown"
         when {
@@ -108,7 +114,6 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    // MODIFIED: CSV 恢复（复用原有逻辑）
     private fun restoreFromCsv(uri: Uri) {
         lifecycleScope.launch {
             val (success, message) = BackupHelper.importFromCSV(this@SettingsActivity, uri)
@@ -116,7 +121,6 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    // MODIFIED: 数据库文件恢复
     private fun restoreFromDb(uri: Uri) {
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
@@ -134,7 +138,6 @@ class SettingsActivity : AppCompatActivity() {
             .show()
     }
 
-    // MODIFIED: 从 Uri 获取文件名
     private fun getFileName(uri: Uri): String? {
         return when (uri.scheme) {
             "content" -> {
