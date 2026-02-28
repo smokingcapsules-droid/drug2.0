@@ -93,7 +93,8 @@ class PeakPlannerActivity : AppCompatActivity() {
             ?: run { Toast.makeText(this, "请输入剂量", Toast.LENGTH_SHORT).show(); return }
 
         val weightKg = UserPreferences.getWeightKg(this)
-        val halfLife = DrugCalculator.adjustedHalfLife(drug, weightKg)
+        val bodyFat = UserPreferences.getBodyFatPercent(this)
+        val halfLife = DrugCalculator.adjustedHalfLife(drug, weightKg, bodyFat)
 
         val takeAtMs = targetTimeMs - (drug.tmaxHours * 3600_000L).toLong()
         val peakAtMs = targetTimeMs
@@ -104,9 +105,11 @@ class PeakPlannerActivity : AppCompatActivity() {
         viewModel.getRecordsForDrug(selectedDrug) { records ->
             runOnUiThread {
                 val nowMs = System.currentTimeMillis()
-                // 用新逻辑：当前残余mg
-                val existingMg = DrugCalculator.totalRemainingMg(records, drug, weightKg, takeAtMs)
-                val advice = DrugCalculator.getDoseAdvice(records, drug, weightKg, nowMs)
+                // 修改：使用新函数，传入 context 和 atTimeMs
+                val existingMg = DrugCalculator.totalRemainingMg(
+                    records, drug, weightKg, bodyFat, takeAtMs
+                )
+                val advice = DrugCalculator.getDoseAdvice(records, drug, this@PeakPlannerActivity, nowMs)
 
                 val existingNote = if (existingMg > dose * 0.05)
                     "\n⚠ 届时体内还有 ${String.format("%.2f", existingMg)}${drug.unit} 残余（约${String.format("%.0f", advice.percentOfStandard)}%剂量当量）"
