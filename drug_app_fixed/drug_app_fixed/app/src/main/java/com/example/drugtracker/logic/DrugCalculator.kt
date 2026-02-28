@@ -2,16 +2,39 @@ package com.example.drugtracker.logic
 
 import com.example.drugtracker.data.DrugInfo
 import com.example.drugtracker.data.MedicationRecord
+import com.example.drugtracker.util.UserPreferences
 import kotlin.math.*
 
 object DrugCalculator {
 
-    fun adjustedHalfLife(drug: DrugInfo, weightKg: Double): Double {
-        return if (drug.isLipophilic) drug.halfLifeHours * (weightKg / 70.0).pow(0.3)
-        else drug.halfLifeHours
+    // MODIFIED: 半衰期修正，加入体脂率影响（脂溶性药物）
+    fun adjustedHalfLife(
+        drug: DrugInfo,
+        weightKg: Double,
+        bodyFatPercent: Double // 0~100 的百分比
+    ): Double {
+        val base = if (drug.isLipophilic) {
+            drug.halfLifeHours * (weightKg / 70.0).pow(0.3)
+        } else {
+            drug.halfLifeHours * (weightKg / 70.0).pow(0.25)
+        }
+        return if (drug.isLipophilic) {
+            // 脂溶性药物额外考虑体脂率：体脂率25%为基准，每高1%半衰期延长0.3%
+            val fatFactor = 1 + 0.3 * (bodyFatPercent / 100.0 - 0.25)
+            base * fatFactor.coerceAtLeast(0.5) // 至少不低于一半
+        } else {
+            base
+        }
     }
 
-    // ── 含吸收相的单次给药浓度 ────────────────────────────
+    // 兼容旧接口（从UserPreferences读取体脂率）
+    fun adjustedHalfLife(drug: DrugInfo, context: android.content.Context): Double {
+        val weight = UserPreferences.getWeightKg(context)
+        val bodyFat = UserPreferences.getBodyFatPercent(context)
+        return adjustedHalfLife(drug, weight, bodyFat)
+    }
+
+    // 含吸收相的单次给药浓度
     fun concentrationMgWithAbsorption(
         doseMg: Double,
         halfLifeHours: Double,
@@ -20,21 +43,22 @@ object DrugCalculator {
     ): Double {
         if (hoursSinceDose < 0) return 0.0
         return if (hoursSinceDose <= tmaxHours) {
-            doseMg * (hoursSinceDose / tmaxHours)  // 线性上升到峰值
+            doseMg * (hoursSinceDose / tmaxHours)
         } else {
             val hoursAfterPeak = hoursSinceDose - tmaxHours
             doseMg * 0.5.pow(hoursAfterPeak / halfLifeHours)
         }
     }
 
-    // ── 当前体内总残余量（mg）────────────────────────────
+    // 当前体内总残余量（mg）
     fun totalRemainingMg(
         records: List<MedicationRecord>,
         drug: DrugInfo,
         weightKg: Double,
+        bodyFatPercent: Double,
         atTimeMs: Long
     ): Double {
-        val halfLife = adjustedHalfLife(drug, weightKg)
+        val halfLife = adjustedHalfLife(drug, weightKg, bodyFatPercent)
         return records
             .filter { it.drugName == drug.name && it.takenAtMs <= atTimeMs }
             .sumOf { r ->
@@ -45,56 +69,43 @@ object DrugCalculator {
             }
     }
 
-    // ── 统一百分比接口（图表用）──────────────────────────
-    // 维持类：稳态达成度%（最高100%）
-    // 按需类：残余量 ÷ 单次标准剂量%
+    // 统一百分比接口
     fun totalConcentrationPercent(
         records: List<MedicationRecord>,
         drug: DrugInfo,
         weightKg: Double,
+        bodyFatPercent: Double,
         atTimeMs: Long
     ): Double {
-        return if (drug.isCritical) {  // isCritical = 维持类
-            getSteadyStatePercent(records, drug, weightKg, atTimeMs)
+        return if (drug.isCritical) {
+            getSteadyStatePercent(records, drug, weightKg, bodyFatPercent, atTimeMs)
         } else {
-            val remaining = totalRemainingMg(records, drug, weightKg, atTimeMs)
+            val remaining = totalRemainingMg(records, drug, weightKg, bodyFatPercent, atTimeMs)
             val dose = getStandardDose(drug, records)
             (remaining / dose * 100.0).coerceAtMost(200.0)
         }
     }
 
-    // ── 维持类：稳态达成度 ────────────────────────────────
-    // 原理：每天服药，经过~5个半衰期（约5×halfLife小时）后达到稳态
-    // 稳态浓度 ≈ 单次剂量 / (1 - 0.5^(dosing_interval/halfLife))
-    // 稳态达成度 = 当前残余 / 稳态目标浓度 × 100%
+    // 维持类：稳态达成度
     fun getSteadyStatePercent(
         records: List<MedicationRecord>,
         drug: DrugInfo,
         weightKg: Double,
+        bodyFatPercent: Double,
         atTimeMs: Long
     ): Double {
-        val halfLife = adjustedHalfLife(drug, weightKg)
-        val dosingIntervalHours = 24.0  // 每日一次
+        val halfLife = adjustedHalfLife(drug, weightKg, bodyFatPercent)
+        val dosingIntervalHours = 24.0
         val dailyDose = getStandardDose(drug, records)
 
-        // 稳态峰浓度理论值 = dose / (1 - e^(-ln2/halfLife * interval))
-        // 简化：= dose / (1 - 0.5^(interval/halfLife))
         val accFactor = 1.0 / (1.0 - 0.5.pow(dosingIntervalHours / halfLife))
         val steadyStateMg = dailyDose * accFactor
+        val currentMg = totalRemainingMg(records, drug, weightKg, bodyFatPercent, atTimeMs)
 
-        val currentMg = totalRemainingMg(records, drug, weightKg, atTimeMs)
         return (currentMg / steadyStateMg * 100.0).coerceAtMost(100.0)
     }
 
-    // 兼容旧接口
-    fun totalConcentrationMg(
-        records: List<MedicationRecord>,
-        drug: DrugInfo,
-        weightKg: Double,
-        atTimeMs: Long
-    ): Double = totalRemainingMg(records, drug, weightKg, atTimeMs)
-
-    // MODIFIED: 统一将剂量转换为毫克
+    // 获取标准剂量（统一转换为毫克）
     private fun getStandardDose(drug: DrugInfo, records: List<MedicationRecord>): Double {
         val dose = if (drug.defaultDose != null && drug.defaultDose > 0) {
             drug.defaultDose
@@ -102,44 +113,41 @@ object DrugCalculator {
             records.filter { it.drugName == drug.name }
                 .groupBy { it.doseMg }.maxByOrNull { it.value.size }?.key ?: 1.0
         }
-        // 统一转换为毫克
-        return if (drug.unit == "μg") {
-            dose / 1000.0
-        } else {
-            dose
-        }
+        return if (drug.unit == "μg") dose / 1000.0 else dose
     }
 
-    // ── 按需类专用：剂量建议 ──────────────────────────────
+    // 剂量建议数据类
     data class DoseAdvice(
         val drugName: String,
         val remainingMg: Double,
         val standardDose: Double,
-        val suggestedDose: Double,      // 0 = 暂不需要
+        val suggestedDose: Double,
         val percentOfStandard: Double,
         val isAccumulated: Boolean,
-        val isMaintenance: Boolean,     // true = 维持类，不显示补充建议
-        val steadyStatePercent: Double, // 仅维持类有意义
+        val isMaintenance: Boolean,
+        val steadyStatePercent: Double,
         val unit: String
     )
 
     fun getDoseAdvice(
         records: List<MedicationRecord>,
         drug: DrugInfo,
-        weightKg: Double,
+        context: android.content.Context,
         nowMs: Long
     ): DoseAdvice {
-        val remaining = totalRemainingMg(records, drug, weightKg, nowMs)
+        val weight = UserPreferences.getWeightKg(context)
+        val bodyFat = UserPreferences.getBodyFatPercent(context)
+        val remaining = totalRemainingMg(records, drug, weight, bodyFat, nowMs)
         val standardDose = getStandardDose(drug, records)
         val isMaintenance = drug.isCritical
 
         return if (isMaintenance) {
-            val ssPercent = getSteadyStatePercent(records, drug, weightKg, nowMs)
+            val ssPercent = getSteadyStatePercent(records, drug, weight, bodyFat, nowMs)
             DoseAdvice(
                 drugName = drug.name,
                 remainingMg = remaining,
                 standardDose = standardDose,
-                suggestedDose = standardDose,  // 维持类永远按处方剂量服用
+                suggestedDose = standardDose,
                 percentOfStandard = ssPercent,
                 isAccumulated = false,
                 isMaintenance = true,
@@ -163,13 +171,15 @@ object DrugCalculator {
         }
     }
 
-    // ── 活跃药物列表 ─────────────────────────────────────
+    // 活跃药物列表
     fun getActiveDrugs(
         records: List<MedicationRecord>,
         allDrugs: List<DrugInfo>,
-        weightKg: Double,
+        context: android.content.Context,
         atTimeMs: Long
     ): List<Pair<DrugInfo, Double>> {
+        val weight = UserPreferences.getWeightKg(context)
+        val bodyFat = UserPreferences.getBodyFatPercent(context)
         val cutoff = atTimeMs - 72 * 3_600_000L
         return allDrugs.mapNotNull { drug ->
             val recentRecords = records.filter {
@@ -177,7 +187,7 @@ object DrugCalculator {
             }
             if (recentRecords.isEmpty()) return@mapNotNull null
 
-            val pct = totalConcentrationPercent(records, drug, weightKg, atTimeMs)
+            val pct = totalConcentrationPercent(records, drug, weight, bodyFat, atTimeMs)
             val justTaken = recentRecords.any {
                 (atTimeMs - it.takenAtMs) < drug.tmaxHours * 2 * 3_600_000L
             }
@@ -188,16 +198,18 @@ object DrugCalculator {
     fun timeUntilBelowThreshold(
         records: List<MedicationRecord>,
         drug: DrugInfo,
-        weightKg: Double,
+        context: android.content.Context,
         thresholdPercent: Double,
         fromTimeMs: Long
     ): Long? {
-        if (totalConcentrationPercent(records, drug, weightKg, fromTimeMs) < thresholdPercent) return null
+        val weight = UserPreferences.getWeightKg(context)
+        val bodyFat = UserPreferences.getBodyFatPercent(context)
+        if (totalConcentrationPercent(records, drug, weight, bodyFat, fromTimeMs) < thresholdPercent) return null
         val stepMs = 15 * 60 * 1000L
         var scanMs = fromTimeMs
         repeat(200) {
             scanMs += stepMs
-            if (totalConcentrationPercent(records, drug, weightKg, scanMs) < thresholdPercent) return scanMs
+            if (totalConcentrationPercent(records, drug, weight, bodyFat, scanMs) < thresholdPercent) return scanMs
         }
         return null
     }
