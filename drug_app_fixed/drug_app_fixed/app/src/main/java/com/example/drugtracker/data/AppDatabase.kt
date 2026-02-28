@@ -32,7 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // MODIFIED: 关闭并置空单例，用于数据库恢复
+        // 关闭并置空单例，用于数据库恢复
         fun closeAndNullify() {
             INSTANCE?.close()
             INSTANCE = null
