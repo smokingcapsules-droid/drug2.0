@@ -5,8 +5,9 @@ object PresetDrugs {
         // 维持类
         DrugInfo(1,  "草酸艾司西酞普兰",    30.0,  4.0,  "mg",  false, true,  false, 10.0,  "每日10mg"),
         DrugInfo(2,  "拉莫三嗪",            25.0,  2.5,  "mg",  false, true,  false, 75.0,  "每日75mg"),
-        // 丁螺环酮现在设为维持类 (isCritical = true)
+        // 丁螺环酮设为维持类 (isCritical = true)
         DrugInfo(3,  "丁螺环酮",             1.5,  1.0,  "mg",  false, true,  false, 10.0,  "每次10mg"),
+        // 优甲乐：单位μg，默认剂量150.0（表示150μg）
         DrugInfo(4,  "优甲乐（左甲状腺素）",144.0,  3.0,  "μg",  false, true,  false, 150.0, "每日150μg，空腹"),
         DrugInfo(5,  "苏糖酸镁",            12.0,  2.0,  "mg",  false, false, false, 144.0, "每日"),
         // 功能性
