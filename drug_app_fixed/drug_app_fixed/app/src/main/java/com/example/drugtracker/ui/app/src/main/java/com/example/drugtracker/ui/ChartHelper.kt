@@ -19,25 +19,25 @@ import java.util.*
 object ChartHelper {
 
     private val drugColors = mapOf(
-        "草酸艾司西酞普兰"     to Color.parseColor("#FF6B6B"),
-        "拉莫三嗪"             to Color.parseColor("#4ECDC4"),
-        "丁螺环酮"             to Color.parseColor("#45B7D1"),
-        "优甲乐（左甲状腺素）"  to Color.parseColor("#FF1744"),
-        "加巴喷丁"             to Color.parseColor("#96CEB4"),
-        "劳拉西泮"             to Color.parseColor("#FFD93D"),
-        "酒石酸唑吡坦"         to Color.parseColor("#DDA0DD"),
-        "右佐匹克隆"           to Color.parseColor("#98D8C8"),
-        "布洛芬"               to Color.parseColor("#F7DC6F"),
-        "对乙酰氨基酚"         to Color.parseColor("#BB8FCE"),
-        "托莫西汀"             to Color.parseColor("#85C1E9"),
-        "哌甲酯"               to Color.parseColor("#F8C471"),
-        "咖啡因"               to Color.parseColor("#82E0AA"),
-        "茶苯海明"             to Color.parseColor("#F1948A"),
-        "褪黑素"               to Color.parseColor("#A569BD"),
-        "茶氨酸"               to Color.parseColor("#5DADE2"),
-        "苏糖酸镁"             to Color.parseColor("#58D68D"),
-        "茴拉西坦"             to Color.parseColor("#EC7063"),
-        "长春西汀"             to Color.parseColor("#5499C7")
+        "草酸艾司西酞普兰" to Color.parseColor("#FF6B6B"),
+        "拉莫三嗪" to Color.parseColor("#4ECDC4"),
+        "丁螺环酮" to Color.parseColor("#45B7D1"),
+        "优甲乐（左甲状腺素）" to Color.parseColor("#FF1744"),
+        "加巴喷丁" to Color.parseColor("#96CEB4"),
+        "劳拉西泮" to Color.parseColor("#FFD93D"),
+        "酒石酸唑吡坦" to Color.parseColor("#DDA0DD"),
+        "右佐匹克隆" to Color.parseColor("#98D8C8"),
+        "布洛芬" to Color.parseColor("#F7DC6F"),
+        "对乙酰氨基酚" to Color.parseColor("#BB8FCE"),
+        "托莫西汀" to Color.parseColor("#85C1E9"),
+        "哌甲酯" to Color.parseColor("#F8C471"),
+        "咖啡因" to Color.parseColor("#82E0AA"),
+        "茶苯海明" to Color.parseColor("#F1948A"),
+        "褪黑素" to Color.parseColor("#A569BD"),
+        "茶氨酸" to Color.parseColor("#5DADE2"),
+        "苏糖酸镁" to Color.parseColor("#58D68D"),
+        "茴拉西坦" to Color.parseColor("#EC7063"),
+        "长春西汀" to Color.parseColor("#5499C7")
     )
 
     private val fallbackColors = listOf(
@@ -49,43 +49,37 @@ object ChartHelper {
     fun getDrugColor(drugName: String, index: Int = 0): Int =
         drugColors[drugName] ?: fallbackColors[index % fallbackColors.size]
 
-    // 判断当前是否为深色模式
-    private fun isNightMode(context: Context): Boolean {
-        val nightMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-        return nightMode == Configuration.UI_MODE_NIGHT_YES
-    }
+    private fun isNightMode(context: Context): Boolean =
+        (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
 
     fun setupChart(chart: LineChart, context: Context, isFullscreen: Boolean = false) {
-        // 根据模式决定文字颜色：夜间白色，日间黑色
         val textColor = if (isNightMode(context)) Color.WHITE else Color.BLACK
 
-        chart.apply {
-            description.isEnabled = false
-            setTouchEnabled(true)
-            isDragEnabled = true
-            setScaleEnabled(true)
-            setPinchZoom(true)
-            legend.isEnabled = true
-            legend.textSize = if (isFullscreen) 13f else 10f
-            legend.textColor = textColor
-            xAxis.apply {
-                position = XAxis.XAxisPosition.BOTTOM
-                labelRotationAngle = -30f
-                setDrawGridLines(true)
-                granularity = 60f
-                textSize = 9f
-                textColor = textColor
-            }
-            axisLeft.apply {
-                setDrawGridLines(true)
-                axisMinimum = 0f
-                textSize = 10f
-                textColor = textColor
-            }
-            axisRight.isEnabled = false
-            setNoDataText("暂无药物记录")
-            setNoDataTextColor(textColor)
-        }
+        chart.description.isEnabled = false
+        chart.setTouchEnabled(true)
+        chart.isDragEnabled = true
+        chart.setScaleEnabled(true)
+        chart.setPinchZoom(true)
+
+        chart.legend.isEnabled = true
+        chart.legend.textSize = if (isFullscreen) 13f else 10f
+        chart.legend.textColor = textColor
+
+        chart.xAxis.position = XAxis.XAxisPosition.BOTTOM
+        chart.xAxis.labelRotationAngle = -30f
+        chart.xAxis.setDrawGridLines(true)
+        chart.xAxis.granularity = 60f
+        chart.xAxis.textSize = 9f
+        chart.xAxis.textColor = textColor
+
+        chart.axisLeft.setDrawGridLines(true)
+        chart.axisLeft.axisMinimum = 0f
+        chart.axisLeft.textSize = 10f
+        chart.axisLeft.textColor = textColor
+        chart.axisRight.isEnabled = false
+
+        chart.setNoDataText("暂无药物记录")
+        chart.setNoDataTextColor(textColor)
     }
 
     fun updateChartData(
@@ -103,8 +97,8 @@ object ChartHelper {
         val dataSets = mutableListOf<LineDataSet>()
         val timePoints = generateTimePoints(startTimeMs, endTimeMs)
 
-        drugs.forEachIndexed { index, drug ->
-            if (records.none { it.drugName == drug.name }) return@forEachIndexed
+        for ((index, drug) in drugs.withIndex()) {
+            if (records.none { it.drugName == drug.name }) continue
 
             val entries = timePoints.map { timeMs ->
                 val pct = DrugCalculator.totalConcentrationPercent(
@@ -115,7 +109,7 @@ object ChartHelper {
 
             if (entries.any { it.y > 0.5f }) {
                 val color = getDrugColor(drug.name, index)
-                dataSets.add(LineDataSet(entries, drug.name).apply {
+                LineDataSet(entries, drug.name).apply {
                     this.color = color
                     lineWidth = 2.5f
                     setDrawCircles(false)
@@ -124,7 +118,7 @@ object ChartHelper {
                     fillColor = color
                     fillAlpha = 40
                     mode = LineDataSet.Mode.CUBIC_BEZIER
-                })
+                }.let { dataSets.add(it) }
             }
         }
 
