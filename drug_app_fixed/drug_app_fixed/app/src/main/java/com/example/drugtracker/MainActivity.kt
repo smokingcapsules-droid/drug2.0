@@ -3,9 +3,9 @@ package com.example.drugtracker
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
-import android.view.Window
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -29,48 +29,33 @@ class MainActivity : AppCompatActivity() {
     private lateinit var viewModel: MedicationViewModel
     private var selectedDrug: String = ""
     private var currentRecords: List<MedicationRecord> = emptyList()
-
-    // 服药时间，默认当前时间，用户可修改
     private var selectedTimeMs: Long = System.currentTimeMillis()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // [修复核心]：在 super.onCreate 之前强制声明不需要标题栏，防止 Android 16 系统注入 ActionBar 冲突
-        supportRequestWindowFeature(Window.FEATURE_NO_TITLE)
-        
         super.onCreate(savedInstanceState)
-        
-        // 初始化 ViewBinding
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // 初始化 ViewModel
         viewModel = ViewModelProvider(this)[MedicationViewModel::class.java]
 
-        // UI 初始设置
         updateTimeButtonText()
         setupDrugSpinner()
         setupChartTabs()
         setupButtons()
         setupChart()
         observeData()
-        
-        // 处理外部 Intent（如通知快捷记录）
         checkQuickRecord(intent)
-
-        // 启动提醒引擎
         ReminderEngine.scheduleLevothyroxineDaily(this)
     }
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        setIntent(intent) // 确保 intent 被更新
         checkQuickRecord(intent)
     }
 
     private fun checkQuickRecord(intent: Intent?) {
         val drugName = intent?.getStringExtra("quick_record_drug") ?: return
         selectedDrug = drugName
-        // 更新spinner选中项
         val adapter = binding.spinnerDrug.adapter ?: return
         for (i in 0 until adapter.count) {
             if (adapter.getItem(i).toString() == drugName) {
@@ -78,55 +63,36 @@ class MainActivity : AppCompatActivity() {
                 break
             }
         }
-        Toast.makeText(this, "已选中 $drugName，请确认剂量后记录", Toast.LENGTH_SHORT).show()
     }
 
-    // ── 时间选择器 ──────────────────────────────────────
+    // ── 时间选择 ─────────────────────────────────────────
     private fun showDateTimePicker() {
         val cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Shanghai"))
         cal.timeInMillis = selectedTimeMs
-
-        DatePickerDialog(
-            this,
-            { _, year, month, day ->
-                cal.set(year, month, day)
-                TimePickerDialog(
-                    this,
-                    { _, hour, minute ->
-                        cal.set(Calendar.HOUR_OF_DAY, hour)
-                        cal.set(Calendar.MINUTE, minute)
-                        cal.set(Calendar.SECOND, 0)
-                        selectedTimeMs = cal.timeInMillis
-                        updateTimeButtonText()
-                    },
-                    cal.get(Calendar.HOUR_OF_DAY),
-                    cal.get(Calendar.MINUTE),
-                    true
-                ).show()
-            },
-            cal.get(Calendar.YEAR),
-            cal.get(Calendar.MONTH),
-            cal.get(Calendar.DAY_OF_MONTH)
-        ).show()
+        DatePickerDialog(this, { _, year, month, day ->
+            cal.set(year, month, day)
+            TimePickerDialog(this, { _, hour, minute ->
+                cal.set(Calendar.HOUR_OF_DAY, hour)
+                cal.set(Calendar.MINUTE, minute)
+                cal.set(Calendar.SECOND, 0)
+                selectedTimeMs = cal.timeInMillis
+                updateTimeButtonText()
+            }, cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), true).show()
+        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
     }
 
     private fun updateTimeButtonText() {
         binding.btnSelectTime.text = "服药时间: ${TimeUtils.formatDateTime(selectedTimeMs)}"
     }
 
-    // ── Spinner ─────────────────────────────────────────
+    // ── Spinner ──────────────────────────────────────────
     private fun setupDrugSpinner() {
-        fun refreshSpinner(customNames: List<String>) {
-            val drugNames = PresetDrugs.all.map { it.name } + customNames
-            val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, drugNames)
+        viewModel.allCustomDrugs.observe(this) { customDrugs ->
+            val names = PresetDrugs.all.map { it.name } + customDrugs.map { it.name }
+            val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, names)
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             binding.spinnerDrug.adapter = adapter
         }
-
-        viewModel.allCustomDrugs.observe(this) { customDrugs ->
-            refreshSpinner(customDrugs.map { it.name })
-        }
-
         binding.spinnerDrug.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 selectedDrug = parent?.getItemAtPosition(position).toString()
@@ -138,17 +104,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ── 图表 Tab ─────────────────────────────────────────
+    // ── Chart Tabs ───────────────────────────────────────
     private fun setupChartTabs() {
-        if (binding.tabLayout.tabCount == 0) { // 防止重复添加 Tab
-            listOf("今日活跃", "功能性", "维持类", "全部").forEach { label ->
-                binding.tabLayout.addTab(binding.tabLayout.newTab().setText(label))
-            }
+        listOf("今日活跃", "功能性", "维持类", "全部").forEach {
+            binding.tabLayout.addTab(binding.tabLayout.newTab().setText(it))
         }
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) { updateChartForTab(tab?.position ?: 0) }
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
-            override fun onTabReselected(tab: TabLayout.Tab?) { updateChartForTab(tab?.position ?: 0) }
+            override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
     }
 
@@ -171,31 +135,22 @@ class MainActivity : AppCompatActivity() {
 
     // ── 记录服药 ─────────────────────────────────────────
     private fun recordMedication() {
-        if (selectedDrug.isEmpty()) {
-            Toast.makeText(this, "请选择药物", Toast.LENGTH_SHORT).show()
-            return
-        }
+        if (selectedDrug.isEmpty()) { Toast.makeText(this, "请选择药物", Toast.LENGTH_SHORT).show(); return }
         val dose = binding.etDose.text.toString().toDoubleOrNull()
-        if (dose == null || dose <= 0) {
-            Toast.makeText(this, "请输入有效剂量", Toast.LENGTH_SHORT).show()
-            return
-        }
+        if (dose == null || dose <= 0) { Toast.makeText(this, "请输入有效剂量", Toast.LENGTH_SHORT).show(); return }
 
         val drug = PresetDrugs.findByName(selectedDrug)
             ?: viewModel.allCustomDrugs.value?.find { it.name == selectedDrug }?.toDrugInfo()
 
-        val record = MedicationRecord(
+        viewModel.addRecord(MedicationRecord(
             drugName = selectedDrug,
             doseMg = dose,
             unit = drug?.unit ?: "mg",
             takenAtMs = selectedTimeMs,
             notes = binding.etNotes.text.toString().trim()
-        )
-
-        viewModel.addRecord(record)
-        Toast.makeText(this, "✓ 已记录 $selectedDrug ${dose}${drug?.unit ?: "mg"} @ ${TimeUtils.formatDateTime(selectedTimeMs)}", Toast.LENGTH_SHORT).show()
+        ))
+        Toast.makeText(this, "✓ 已记录 $selectedDrug ${dose}${drug?.unit ?: "mg"}", Toast.LENGTH_SHORT).show()
         binding.etNotes.text?.clear()
-        // 重置时间为当前时间
         selectedTimeMs = System.currentTimeMillis()
         updateTimeButtonText()
     }
@@ -209,27 +164,25 @@ class MainActivity : AppCompatActivity() {
             updateChartForTab(binding.tabLayout.selectedTabPosition)
         }
         viewModel.allCustomDrugs.observe(this) {
+            updateActiveDrugsCard(currentRecords)
             updateChartForTab(binding.tabLayout.selectedTabPosition)
         }
     }
 
     // ── 优甲乐状态卡 ─────────────────────────────────────
     private fun updateLevothyroxineCard(records: List<MedicationRecord>) {
-        val todayStart = TimeUtils.getTodayStartMs()
         val hasTaken = records.any {
-            it.drugName == "优甲乐（左甲状腺素）" && it.takenAtMs >= todayStart
+            it.drugName == "优甲乐（左甲状腺素）" && it.takenAtMs >= TimeUtils.getTodayStartMs()
         }
-        if (hasTaken) {
-            binding.cardLevo.setCardBackgroundColor(getColor(android.R.color.holo_green_light))
-            binding.tvLevoStatus.text = "✓ 今日优甲乐已记录"
-        } else {
-            binding.cardLevo.setCardBackgroundColor(getColor(android.R.color.holo_red_light))
-            binding.tvLevoStatus.text = "⚠ 今日优甲乐未记录服药"
-        }
+        binding.cardLevo.setCardBackgroundColor(
+            if (hasTaken) getColor(android.R.color.holo_green_light)
+            else getColor(android.R.color.holo_red_light)
+        )
+        binding.tvLevoStatus.text = if (hasTaken) "✓ 今日优甲乐已记录" else "⚠ 今日优甲乐未记录服药"
         binding.cardLevo.visibility = View.VISIBLE
     }
 
-    // ── 活跃药物总览 ─────────────────────────────────────
+    // ── 活跃药物 + 建议补充量 ────────────────────────────
     private fun updateActiveDrugsCard(records: List<MedicationRecord>) {
         val weightKg = UserPreferences.getWeightKg(this)
         val allDrugs = PresetDrugs.all + (viewModel.allCustomDrugs.value?.map { it.toDrugInfo() } ?: emptyList())
@@ -242,10 +195,25 @@ class MainActivity : AppCompatActivity() {
         }
 
         val sb = StringBuilder()
-        active.take(6).forEach { (drug, conc) ->
-            val bar = "█".repeat((conc / 10).toInt().coerceIn(0, 10))
-            val empty = "░".repeat(10 - (conc / 10).toInt().coerceIn(0, 10))
-            sb.appendLine("${drug.name}  $bar$empty  ${String.format("%.0f", conc)}%")
+        active.take(8).forEach { (drug, pct) ->
+            val advice = DrugCalculator.getDoseAdvice(records, drug, weightKg, nowMs)
+            val barLen = (pct / 10).toInt().coerceIn(0, 10)
+            val bar = "█".repeat(barLen) + "░".repeat(10 - barLen)
+
+            // 超过110%用⚠标记
+            val warning = if (advice.isAccumulated) " ⚠" else ""
+            val pctStr = String.format("%.0f", pct) + "%$warning"
+
+            sb.append("${drug.name}\n")
+            sb.append("  $bar $pctStr  剩${String.format("%.1f", advice.remainingMg)}${drug.unit}\n")
+
+            // 显示建议补充量（维持类药物不显示，因为它们需要固定剂量）
+            if (!drug.isCritical && advice.suggestedDose > 0.05) {
+                sb.append("  → 建议补充 ${String.format("%.2f", advice.suggestedDose)}${drug.unit}\n")
+            } else if (!drug.isCritical && advice.suggestedDose <= 0.05) {
+                sb.append("  → 暂不需要补充\n")
+            }
+            sb.append("\n")
         }
         binding.tvActiveDrugs.text = sb.toString().trimEnd()
     }
@@ -256,25 +224,13 @@ class MainActivity : AppCompatActivity() {
         val nowMs = System.currentTimeMillis()
         val allDrugs = PresetDrugs.all + (viewModel.allCustomDrugs.value?.map { it.toDrugInfo() } ?: emptyList())
 
-        // 内部配置类
-        data class TabConfig(val drugs: List<com.example.drugtracker.data.DrugInfo>, val startMs: Long, val endMs: Long)
-
-        val config = when (tabPosition) {
-            0 -> {
-                val active = DrugCalculator.getActiveDrugs(currentRecords, allDrugs, weightKg, nowMs).map { it.first }
-                TabConfig(active, nowMs - 6 * 3600_000L, nowMs + 18 * 3600_000L)
-            }
-            1 -> TabConfig(PresetDrugs.getFunctionalDrugs(), nowMs - 6 * 3600_000L, nowMs + 24 * 3600_000L)
-            2 -> TabConfig(PresetDrugs.getMaintenanceDrugs(), nowMs - 24 * 3600_000L, nowMs + 7 * 24 * 3600_000L)
-            else -> {
-                val withRecords = allDrugs.filter { drug -> currentRecords.any { it.drugName == drug.name } }
-                TabConfig(withRecords, nowMs - 24 * 3600_000L, nowMs + 3 * 24 * 3600_000L)
-            }
+        data class Cfg(val drugs: List<com.example.drugtracker.data.DrugInfo>, val startMs: Long, val endMs: Long)
+        val cfg = when (tabPosition) {
+            0 -> { val a = DrugCalculator.getActiveDrugs(currentRecords, allDrugs, weightKg, nowMs).map { it.first }; Cfg(a, nowMs - 6*3600_000L, nowMs + 18*3600_000L) }
+            1 -> Cfg(PresetDrugs.getFunctionalDrugs(), nowMs - 6*3600_000L, nowMs + 24*3600_000L)
+            2 -> Cfg(PresetDrugs.getMaintenanceDrugs(), nowMs - 24*3600_000L, nowMs + 7*24*3600_000L)
+            else -> { val w = allDrugs.filter { d -> currentRecords.any { it.drugName == d.name } }; Cfg(w, nowMs - 24*3600_000L, nowMs + 3*24*3600_000L) }
         }
-
-        ChartHelper.updateChartData(
-            binding.chart, currentRecords, config.drugs, weightKg,
-            config.startMs, config.endMs, nowMs
-        )
+        ChartHelper.updateChartData(binding.chart, currentRecords, cfg.drugs, weightKg, cfg.startMs, cfg.endMs, nowMs)
     }
 }
