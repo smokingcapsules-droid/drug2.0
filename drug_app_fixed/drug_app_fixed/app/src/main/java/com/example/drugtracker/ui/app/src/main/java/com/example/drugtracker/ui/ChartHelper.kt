@@ -49,7 +49,6 @@ object ChartHelper {
     fun getDrugColor(drugName: String, index: Int = 0): Int =
         drugColors[drugName] ?: fallbackColors[index % fallbackColors.size]
 
-    // 修改：增加 Context 参数，用于获取主题颜色
     fun setupChart(chart: LineChart, context: Context, isFullscreen: Boolean = false) {
         // 获取当前主题的默认文字颜色
         val typedValue = TypedValue()
@@ -64,24 +63,24 @@ object ChartHelper {
             setPinchZoom(true)
             legend.isEnabled = true
             legend.textSize = if (isFullscreen) 13f else 10f
-            legend.textColor = textColor  // 图例文字颜色适配主题
+            legend.textColor = textColor
             xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
                 labelRotationAngle = -30f
                 setDrawGridLines(true)
                 granularity = 60f
                 textSize = 9f
-                textColor = textColor      // X轴文字颜色
+                textColor = textColor
             }
             axisLeft.apply {
                 setDrawGridLines(true)
                 axisMinimum = 0f
                 textSize = 10f
-                textColor = textColor      // Y轴文字颜色
+                textColor = textColor
             }
             axisRight.isEnabled = false
             setNoDataText("暂无药物记录")
-            setNoDataTextColor(textColor)  // 无数据提示文字颜色
+            setNoDataTextColor(textColor)
         }
     }
 
