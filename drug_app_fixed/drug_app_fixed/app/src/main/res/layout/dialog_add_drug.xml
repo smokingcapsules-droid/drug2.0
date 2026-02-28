@@ -42,4 +42,13 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:text="脂溶性药物" />
+
+    <!-- 新增维持类药物开关 -->
+    <Switch
+        android:id="@+id/switchCritical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="维持类药物（需每日规律服用）" />
+
 </LinearLayout>
