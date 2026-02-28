@@ -5,118 +5,132 @@ import com.example.drugtracker.data.MedicationRecord
 import kotlin.math.*
 
 object DrugCalculator {
-    
-    // 根据体重调整半衰期（脂溶性药物）
+
+    // 体重修正半衰期（仅脂溶性药物）
     fun adjustedHalfLife(drug: DrugInfo, weightKg: Double): Double {
-        return if (drug.isLipophilic) {
-            drug.halfLifeHours * (weightKg / 70.0).pow(0.3)
-        } else {
-            drug.halfLifeHours
-        }
+        return if (drug.isLipophilic) drug.halfLifeHours * (weightKg / 70.0).pow(0.3)
+        else drug.halfLifeHours
     }
 
-    // 计算单次给药后的残余浓度百分比 (0-100%)
-    fun concentrationPercentAfterDose(halfLifeHours: Double, hoursSinceDose: Double): Double {
-        if (hoursSinceDose < 0) return 0.0
-        return 100.0 * (0.5).pow(hoursSinceDose / halfLifeHours)
-    }
-
-    // 计算单次给药后的残余量 (mg)
-    fun concentrationMgAfterDose(doseMg: Double, halfLifeHours: Double, hoursSinceDose: Double): Double {
-        if (hoursSinceDose < 0) return 0.0
-        return doseMg * (0.5).pow(hoursSinceDose / halfLifeHours)
-    }
-
-    // 计算达峰时间后的浓度（考虑吸收相）
-    fun concentrationWithAbsorption(
+    // 单次给药的残余量（考虑吸收上升相）
+    fun concentrationMgWithAbsorption(
         doseMg: Double,
         halfLifeHours: Double,
         tmaxHours: Double,
         hoursSinceDose: Double
     ): Double {
         if (hoursSinceDose < 0) return 0.0
-        
-        // 简化模型：吸收相用正弦曲线模拟，达峰后按指数衰减
         return if (hoursSinceDose <= tmaxHours) {
-            // 吸收上升相
-            val absorptionRatio = sin((hoursSinceDose / tmaxHours) * PI / 2)
-            doseMg * absorptionRatio
+            // 吸收上升相：正弦曲线从0爬升到峰值
+            doseMg * sin((hoursSinceDose / tmaxHours) * PI / 2)
         } else {
-            // 达峰后衰减
-            val peakConcentration = doseMg
+            // 达峰后指数衰减
             val hoursAfterPeak = hoursSinceDose - tmaxHours
-            peakConcentration * (0.5).pow(hoursAfterPeak / halfLifeHours)
+            doseMg * 0.5.pow(hoursAfterPeak / halfLifeHours)
         }
     }
 
-    // 计算某时刻的总浓度（所有记录叠加）- 返回百分比
+    // 简单衰减（不含吸收相，用于计算残余量）
+    fun concentrationMgAfterDose(doseMg: Double, halfLifeHours: Double, hoursSinceDose: Double): Double {
+        if (hoursSinceDose < 0) return 0.0
+        return doseMg * 0.5.pow(hoursSinceDose / halfLifeHours)
+    }
+
+    // ── 核心：当前残余总量（mg），含吸收相 ──────────────────────
+    fun totalRemainingMg(
+        records: List<MedicationRecord>,
+        drug: DrugInfo,
+        weightKg: Double,
+        atTimeMs: Long
+    ): Double {
+        val halfLife = adjustedHalfLife(drug, weightKg)
+        return records
+            .filter { it.drugName == drug.name && it.takenAtMs <= atTimeMs }
+            .sumOf { record ->
+                val hoursSince = (atTimeMs - record.takenAtMs) / 3_600_000.0
+                concentrationMgWithAbsorption(record.doseMg, halfLife, drug.tmaxHours, hoursSince)
+            }
+    }
+
+    // ── 剂量当量百分比（新逻辑）──────────────────────────────────
+    // 100% = 体内恰好有一个标准剂量当量
+    // >100% = 积累超过一个剂量，需要警惕
     fun totalConcentrationPercent(
         records: List<MedicationRecord>,
         drug: DrugInfo,
         weightKg: Double,
         atTimeMs: Long
     ): Double {
-        val halfLife = adjustedHalfLife(drug, weightKg)
-        val drugRecords = records.filter { it.drugName == drug.name }
-        
-        if (drugRecords.isEmpty()) return 0.0
-        
-        val totalDose = drugRecords.sumOf { it.doseMg }
-        if (totalDose == 0.0) return 0.0
-        
-        var currentAmount = 0.0
-        drugRecords.forEach { record ->
-            val hoursSince = (atTimeMs - record.takenAtMs) / (1000.0 * 60 * 60)
-            currentAmount += concentrationMgAfterDose(record.doseMg, halfLife, hoursSince)
+        val remainingMg = totalRemainingMg(records, drug, weightKg, atTimeMs)
+        val standardDose = drug.defaultDose ?: run {
+            // 没有默认剂量时，用历史记录中最常用的剂量
+            records.filter { it.drugName == drug.name }
+                .groupBy { it.doseMg }
+                .maxByOrNull { it.value.size }
+                ?.key ?: 1.0
         }
-        
-        return (currentAmount / totalDose) * 100.0
+        return (remainingMg / standardDose) * 100.0
     }
 
-    // 计算某时刻的总残余量 (mg)
+    // 兼容旧接口（totalConcentrationMg）
     fun totalConcentrationMg(
         records: List<MedicationRecord>,
         drug: DrugInfo,
         weightKg: Double,
         atTimeMs: Long
-    ): Double {
-        val halfLife = adjustedHalfLife(drug, weightKg)
-        val drugRecords = records.filter { it.drugName == drug.name }
-        
-        var currentAmount = 0.0
-        drugRecords.forEach { record ->
-            val hoursSince = (atTimeMs - record.takenAtMs) / (1000.0 * 60 * 60)
-            currentAmount += concentrationMgAfterDose(record.doseMg, halfLife, hoursSince)
-        }
-        
-        return currentAmount
+    ): Double = totalRemainingMg(records, drug, weightKg, atTimeMs)
+
+    // ── 今日建议补充量 ────────────────────────────────────────────
+    data class DoseAdvice(
+        val drugName: String,
+        val remainingMg: Double,       // 当前残余mg
+        val standardDose: Double,       // 标准单次剂量
+        val suggestedDose: Double,      // 建议补充mg（0表示暂不需要）
+        val percentOfStandard: Double,  // 剂量当量%
+        val isAccumulated: Boolean,     // 是否超过100%（积累警告）
+        val unit: String
+    )
+
+    fun getDoseAdvice(
+        records: List<MedicationRecord>,
+        drug: DrugInfo,
+        weightKg: Double,
+        nowMs: Long
+    ): DoseAdvice {
+        val remaining = totalRemainingMg(records, drug, weightKg, nowMs)
+        val standardDose = drug.defaultDose ?: records
+            .filter { it.drugName == drug.name }
+            .groupBy { it.doseMg }.maxByOrNull { it.value.size }?.key ?: 1.0
+        val percent = (remaining / standardDose) * 100.0
+        val suggested = maxOf(0.0, standardDose - remaining)
+        return DoseAdvice(
+            drugName = drug.name,
+            remainingMg = remaining,
+            standardDose = standardDose,
+            suggestedDose = suggested,
+            percentOfStandard = percent,
+            isAccumulated = percent > 110.0,  // 超过110%触发积累警告
+            unit = drug.unit
+        )
     }
 
-    // 计算稳态浓度（规律服药时）
-    fun steadyStateConcentration(
-        doseMg: Double,
-        halfLifeHours: Double,
-        dosingIntervalHours: Double
-    ): Double {
-        // 稳态浓度 = 剂量 / (1 - 0.5^(间隔/半衰期))
-        val accumulationFactor = 1.0 / (1.0 - (0.5).pow(dosingIntervalHours / halfLifeHours))
-        return doseMg * accumulationFactor
+    // ── 获取活跃药物（72h内有记录且残余>5%）────────────────────────
+    fun getActiveDrugs(
+        records: List<MedicationRecord>,
+        allDrugs: List<DrugInfo>,
+        weightKg: Double,
+        atTimeMs: Long
+    ): List<Pair<DrugInfo, Double>> {
+        val cutoff = atTimeMs - 72 * 3_600_000L
+        return allDrugs.mapNotNull { drug ->
+            val hasRecent = records.any { it.drugName == drug.name && it.takenAtMs >= cutoff }
+            if (!hasRecent) return@mapNotNull null
+            val pct = totalConcentrationPercent(records, drug, weightKg, atTimeMs)
+            if (pct > 5.0) drug to pct else null
+        }.sortedByDescending { it.second }
     }
 
-    // 计算下次达峰时间
-    fun nextPeakTime(records: List<MedicationRecord>, drug: DrugInfo, fromTimeMs: Long): Long? {
-        val drugRecords = records.filter { it.drugName == drug.name }
-        if (drugRecords.isEmpty()) return null
-        
-        // 找到最近一次服药的达峰时间
-        val lastRecord = drugRecords.maxByOrNull { it.takenAtMs } ?: return null
-        val tmaxMs = (drug.tmaxHours * 60 * 60 * 1000).toLong()
-        val peakTime = lastRecord.takenAtMs + tmaxMs
-        
-        return if (peakTime > fromTimeMs) peakTime else null
-    }
-
-    // 计算浓度降至阈值的时间
+    // 浓度降至阈值的时间（用于提醒）
     fun timeUntilBelowThreshold(
         records: List<MedicationRecord>,
         drug: DrugInfo,
@@ -124,52 +138,17 @@ object DrugCalculator {
         thresholdPercent: Double,
         fromTimeMs: Long
     ): Long? {
-        val halfLife = adjustedHalfLife(drug, weightKg)
-        val drugRecords = records.filter { it.drugName == drug.name }
-        if (drugRecords.isEmpty()) return null
-        
-        val totalDose = drugRecords.sumOf { it.doseMg }
-        if (totalDose == 0.0) return null
-        
-        // 逐步扫描未来时间点
-        val stepMs = 15 * 60 * 1000L // 15分钟
+        val currentPct = totalConcentrationPercent(records, drug, weightKg, fromTimeMs)
+        if (currentPct < thresholdPercent) return null
+
+        val stepMs = 15 * 60 * 1000L
         var scanMs = fromTimeMs
-        
-        repeat(200) { // 最多扫描50小时
+        repeat(200) {
             scanMs += stepMs
-            var currentAmount = 0.0
-            drugRecords.forEach { record ->
-                val hoursSince = (scanMs - record.takenAtMs) / (1000.0 * 60 * 60)
-                currentAmount += concentrationMgAfterDose(record.doseMg, halfLife, hoursSince)
-            }
-            val percent = (currentAmount / totalDose) * 100.0
-            if (percent < thresholdPercent) {
+            if (totalConcentrationPercent(records, drug, weightKg, scanMs) < thresholdPercent) {
                 return scanMs
             }
         }
-        
         return null
-    }
-
-    // 获取活跃药物（过去72小时内有记录且当前浓度>5%）
-    fun getActiveDrugs(
-        records: List<MedicationRecord>,
-        allDrugs: List<DrugInfo>,
-        weightKg: Double,
-        atTimeMs: Long
-    ): List<Pair<DrugInfo, Double>> {
-        val seventyTwoHoursAgo = atTimeMs - 72 * 60 * 60 * 1000L
-        
-        return allDrugs.mapNotNull { drug ->
-            val drugRecords = records.filter { 
-                it.drugName == drug.name && it.takenAtMs >= seventyTwoHoursAgo 
-            }
-            if (drugRecords.isEmpty()) return@mapNotNull null
-            
-            val concentration = totalConcentrationPercent(records, drug, weightKg, atTimeMs)
-            if (concentration > 5.0) {
-                drug to concentration
-            } else null
-        }.sortedByDescending { it.second }
     }
 }
