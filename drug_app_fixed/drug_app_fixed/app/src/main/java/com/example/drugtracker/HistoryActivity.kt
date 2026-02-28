@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
@@ -34,7 +35,10 @@ class HistoryActivity : AppCompatActivity() {
 
         viewModel = ViewModelProvider(this)[MedicationViewModel::class.java]
 
-        adapter = HistoryAdapter { record, view -> showRecordMenu(record, view) }
+        adapter = HistoryAdapter(
+            onMenuClick = { record, view -> showRecordMenu(record, view) },
+            onNotesClick = { record -> showEditNotesDialog(record) }
+        )
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         binding.recyclerView.adapter = adapter
 
@@ -46,13 +50,34 @@ class HistoryActivity : AppCompatActivity() {
         }
     }
 
+    // 事后补记效果
+    private fun showEditNotesDialog(record: MedicationRecord) {
+        val input = EditText(this).apply {
+            setText(record.notes)
+            hint = "记录感受、效果、副作用..."
+            minLines = 3
+            maxLines = 6
+            setPadding(48, 24, 48, 24)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("补记效果 · ${record.drugName}")
+            .setMessage("服药时间：${TimeUtils.formatDateTime(record.takenAtMs)}")
+            .setView(input)
+            .setPositiveButton("保存") { _, _ ->
+                val newNotes = input.text.toString().trim()
+                viewModel.updateRecord(record.copy(notes = newNotes))
+                Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
     private fun showRecordMenu(record: MedicationRecord, anchorView: View) {
         PopupMenu(this, anchorView).apply {
             menuInflater.inflate(R.menu.record_menu, menu)
             setOnMenuItemClickListener { item ->
-                if (item.itemId == R.id.action_delete) {
-                    confirmDelete(record); true
-                } else false
+                if (item.itemId == R.id.action_delete) { confirmDelete(record); true }
+                else false
             }
             show()
         }
@@ -72,10 +97,7 @@ class HistoryActivity : AppCompatActivity() {
 
     private fun exportRecords() {
         val records = viewModel.allRecords.value ?: return
-        if (records.isEmpty()) {
-            Toast.makeText(this, "暂无记录可导出", Toast.LENGTH_SHORT).show()
-            return
-        }
+        if (records.isEmpty()) { Toast.makeText(this, "暂无记录", Toast.LENGTH_SHORT).show(); return }
         val uri = ExportHelper.exportToCSV(this, records)
         if (uri != null) ExportHelper.shareFile(this, uri, "text/csv")
         else Toast.makeText(this, "导出失败", Toast.LENGTH_SHORT).show()
@@ -83,9 +105,9 @@ class HistoryActivity : AppCompatActivity() {
 
     override fun onSupportNavigateUp(): Boolean { finish(); return true }
 
-    // ── Adapter ──────────────────────────────────────────
     class HistoryAdapter(
-        private val onMenuClick: (MedicationRecord, View) -> Unit
+        private val onMenuClick: (MedicationRecord, View) -> Unit,
+        private val onNotesClick: (MedicationRecord) -> Unit
     ) : RecyclerView.Adapter<HistoryAdapter.ViewHolder>() {
 
         private var records: List<MedicationRecord> = emptyList()
@@ -99,7 +121,7 @@ class HistoryActivity : AppCompatActivity() {
             ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item_history, parent, false))
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) =
-            holder.bind(records[position], onMenuClick)
+            holder.bind(records[position], onMenuClick, onNotesClick)
 
         override fun getItemCount() = records.size
 
@@ -111,7 +133,11 @@ class HistoryActivity : AppCompatActivity() {
             private val tvNotes: TextView = itemView.findViewById(R.id.tvNotes)
             private val btnMenu: View     = itemView.findViewById(R.id.btnMenu)
 
-            fun bind(record: MedicationRecord, onMenuClick: (MedicationRecord, View) -> Unit) {
+            fun bind(
+                record: MedicationRecord,
+                onMenuClick: (MedicationRecord, View) -> Unit,
+                onNotesClick: (MedicationRecord) -> Unit
+            ) {
                 tvDrug.text = record.drugName
                 tvDose.text = "${record.doseMg} ${record.unit}"
                 tvTime.text = TimeUtils.formatDateTime(record.takenAtMs)
@@ -121,13 +147,14 @@ class HistoryActivity : AppCompatActivity() {
                     "supplement"           -> "补剂"
                     else                   -> "其他"
                 }
-                // 有备注才显示
                 if (record.notes.isNotBlank()) {
-                    tvNotes.text = "📝 ${record.notes}"
+                    tvNotes.text = "📝 ${record.notes}  (点击编辑)"
                     tvNotes.visibility = View.VISIBLE
                 } else {
-                    tvNotes.visibility = View.GONE
+                    tvNotes.text = "+ 补记效果"
+                    tvNotes.visibility = View.VISIBLE
                 }
+                tvNotes.setOnClickListener { onNotesClick(record) }
                 btnMenu.setOnClickListener { onMenuClick(record, it) }
             }
         }
