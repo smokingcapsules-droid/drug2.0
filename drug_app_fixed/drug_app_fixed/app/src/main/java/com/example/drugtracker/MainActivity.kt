@@ -5,6 +5,8 @@ import android.app.TimePickerDialog
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
@@ -33,6 +35,18 @@ class MainActivity : AppCompatActivity() {
     private var selectedTimeMs: Long = System.currentTimeMillis()
     private var currentDrugInfo: DrugInfo? = null
 
+    // 定时器用于实时刷新
+    private val handler = Handler(Looper.getMainLooper())
+    private val refreshRunnable = object : Runnable {
+        override fun run() {
+            // 刷新活跃药物列表和图表
+            updateActiveDrugsCard(currentRecords)
+            updateChartForTab(binding.tabLayout.selectedTabPosition)
+            // 每分钟刷新一次
+            handler.postDelayed(this, 60_000)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -46,6 +60,18 @@ class MainActivity : AppCompatActivity() {
         observeData()
         checkQuickRecord(intent)
         ReminderEngine.scheduleLevothyroxineDaily(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 启动定时器
+        handler.post(refreshRunnable)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // 停止定时器
+        handler.removeCallbacks(refreshRunnable)
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -220,24 +246,47 @@ class MainActivity : AppCompatActivity() {
         val sb = StringBuilder()
         active.take(8).forEach { (drug, pct) ->
             val advice = DrugCalculator.getDoseAdvice(records, drug, this, nowMs)
+
+            // 计算条形图
             val barLen = (pct / 10).toInt().coerceIn(0, 10)
             val bar = "█".repeat(barLen) + "░".repeat(10 - barLen)
+
+            // 单位转换：如果药物单位是μg，将mg值转换为μg显示
+            val unitFactor = if (drug.unit == "μg") 1000.0 else 1.0
+            val remainingDisplay = advice.remainingMg * unitFactor
+            val standardDoseDisplay = advice.standardDose * unitFactor
+            val suggestedDisplay = advice.suggestedDose * unitFactor
+
+            // 对于按需药物，判断当前是否在吸收阶段
+            val isAbsorbing = if (!advice.isMaintenance) {
+                val lastRecord = records.filter { it.drugName == drug.name }.maxByOrNull { it.takenAtMs }
+                if (lastRecord != null) {
+                    val hoursSince = (nowMs - lastRecord.takenAtMs) / 3_600_000.0
+                    hoursSince < drug.tmaxHours
+                } else false
+            } else false
 
             if (advice.isMaintenance) {
                 // 维持类：显示稳态达成度
                 val ssStr = String.format("%.0f", advice.steadyStatePercent)
                 sb.appendLine(drug.name)
-                sb.appendLine("  $bar 稳态${ssStr}%  剩${String.format("%.1f", advice.remainingMg)}${drug.unit}")
-                sb.appendLine("  → 按处方服用 ${advice.standardDose}${drug.unit}")
+                sb.appendLine("  $bar 稳态${ssStr}%  剩${String.format("%.1f", remainingDisplay)}${drug.unit}")
+                sb.appendLine("  → 按处方服用 ${String.format("%.1f", standardDoseDisplay)}${drug.unit}")
             } else {
-                // 按需类：显示残余%和补充建议
-                val warn = if (advice.isAccumulated) " ⚠积累" else ""
-                sb.appendLine(drug.name)
-                sb.appendLine("  $bar ${String.format("%.0f", pct)}%残余$warn  剩${String.format("%.2f", advice.remainingMg)}${drug.unit}")
-                if (advice.suggestedDose > 0.01) {
-                    sb.appendLine("  → 可补充 ${String.format("%.2f", advice.suggestedDose)}${drug.unit}")
+                // 按需类：根据吸收/消除阶段显示不同文案
+                if (isAbsorbing) {
+                    sb.appendLine(drug.name)
+                    sb.appendLine("  $bar 吸收中 ${String.format("%.0f", pct)}%  当前 ${String.format("%.2f", remainingDisplay)}${drug.unit}（上升中）")
+                    // 吸收阶段不显示补充建议
                 } else {
-                    sb.appendLine("  → 暂不需要补充")
+                    val warn = if (advice.isAccumulated) " ⚠积累" else ""
+                    sb.appendLine(drug.name)
+                    sb.appendLine("  $bar ${String.format("%.0f", pct)}%残余$warn  剩${String.format("%.2f", remainingDisplay)}${drug.unit}")
+                    if (suggestedDisplay > 0.01 * unitFactor) {
+                        sb.appendLine("  → 需要时可服用 ${String.format("%.2f", standardDoseDisplay)}${drug.unit}")
+                    } else {
+                        sb.appendLine("  → 暂不需要补充")
+                    }
                 }
             }
             sb.appendLine()
@@ -247,7 +296,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateChartForTab(tabPosition: Int) {
         val weightKg = UserPreferences.getWeightKg(this)
-        val bodyFat = UserPreferences.getBodyFatPercent(this) // 获取体脂率
+        val bodyFat = UserPreferences.getBodyFatPercent(this)
+        val therapyLow = UserPreferences.getTherapyWindowLow(this)   // 治疗窗下限，后续添加
+        val therapyHigh = UserPreferences.getTherapyWindowHigh(this) // 治疗窗上限
         val nowMs = System.currentTimeMillis()
         val allDrugs = PresetDrugs.all + (viewModel.allCustomDrugs.value?.map { it.toDrugInfo() } ?: emptyList())
         data class Cfg(val drugs: List<DrugInfo>, val start: Long, val end: Long)
@@ -273,7 +324,9 @@ class MainActivity : AppCompatActivity() {
             bodyFat,
             cfg.start,
             cfg.end,
-            nowMs
+            nowMs,
+            therapyLow,
+            therapyHigh
         )
     }
 }
