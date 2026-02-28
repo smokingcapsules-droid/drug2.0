@@ -1,6 +1,8 @@
 package com.example.drugtracker.ui
 
+import android.content.Context
 import android.graphics.Color
+import android.util.TypedValue
 import com.example.drugtracker.data.DrugInfo
 import com.example.drugtracker.data.MedicationRecord
 import com.example.drugtracker.logic.DrugCalculator
@@ -47,7 +49,13 @@ object ChartHelper {
     fun getDrugColor(drugName: String, index: Int = 0): Int =
         drugColors[drugName] ?: fallbackColors[index % fallbackColors.size]
 
-    fun setupChart(chart: LineChart, isFullscreen: Boolean = false) {
+    // 修改：增加 Context 参数，用于获取主题颜色
+    fun setupChart(chart: LineChart, context: Context, isFullscreen: Boolean = false) {
+        // 获取当前主题的默认文字颜色
+        val typedValue = TypedValue()
+        context.theme.resolveAttribute(android.R.attr.textColorPrimary, typedValue, true)
+        val textColor = typedValue.data
+
         chart.apply {
             description.isEnabled = false
             setTouchEnabled(true)
@@ -56,20 +64,24 @@ object ChartHelper {
             setPinchZoom(true)
             legend.isEnabled = true
             legend.textSize = if (isFullscreen) 13f else 10f
+            legend.textColor = textColor  // 图例文字颜色适配主题
             xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
                 labelRotationAngle = -30f
                 setDrawGridLines(true)
                 granularity = 60f
                 textSize = 9f
+                textColor = textColor      // X轴文字颜色
             }
             axisLeft.apply {
                 setDrawGridLines(true)
                 axisMinimum = 0f
                 textSize = 10f
+                textColor = textColor      // Y轴文字颜色
             }
             axisRight.isEnabled = false
             setNoDataText("暂无药物记录")
+            setNoDataTextColor(textColor)  // 无数据提示文字颜色
         }
     }
 
@@ -82,8 +94,8 @@ object ChartHelper {
         startTimeMs: Long,
         endTimeMs: Long,
         nowMs: Long = System.currentTimeMillis(),
-        therapyLow: Float = 0f,   // 治疗窗下限 (mg)
-        therapyHigh: Float = 0f    // 治疗窗上限 (mg)
+        therapyLow: Float = 0f,
+        therapyHigh: Float = 0f
     ) {
         val dataSets = mutableListOf<LineDataSet>()
         val timePoints = generateTimePoints(startTimeMs, endTimeMs)
@@ -121,11 +133,9 @@ object ChartHelper {
                 sdf.format(Date(value.toLong() * 60 * 1000))
         }
 
-        // 清除旧的限制线
         chart.xAxis.removeAllLimitLines()
         chart.axisLeft.removeAllLimitLines()
 
-        // 添加“现在”竖线
         chart.xAxis.addLimitLine(LimitLine((nowMs / (1000 * 60)).toFloat(), "现在").apply {
             lineColor = Color.RED
             lineWidth = 1.5f
@@ -134,7 +144,6 @@ object ChartHelper {
             textSize = 10f
         })
 
-        // 添加治疗窗上下限（如果设置了）
         if (therapyLow > 0) {
             chart.axisLeft.addLimitLine(LimitLine(therapyLow, "治疗窗下限").apply {
                 lineColor = Color.parseColor("#00AA00")
@@ -156,7 +165,6 @@ object ChartHelper {
             })
         }
 
-        // 原有的“1个剂量”线可以保留作为参考，但可能会与治疗窗混淆。我们暂时保留，也可以移除。
         chart.axisLeft.addLimitLine(LimitLine(100f, "1个剂量").apply {
             lineColor = Color.parseColor("#888888")
             lineWidth = 1f
