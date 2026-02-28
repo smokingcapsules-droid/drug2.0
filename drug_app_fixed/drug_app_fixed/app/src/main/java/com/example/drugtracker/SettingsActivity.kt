@@ -20,7 +20,6 @@ class SettingsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySettingsBinding
 
-    // 文件选择器：支持所有文件类型
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -46,6 +45,9 @@ class SettingsActivity : AppCompatActivity() {
         binding.etWeight.setText(UserPreferences.getWeightKg(this).toString())
         binding.etHeight.setText(UserPreferences.getHeightCm(this).toString())
         binding.etBodyFat.setText(UserPreferences.getBodyFatPercent(this).toString())
+        binding.etTSHTarget.setText(UserPreferences.getTSHTarget(this).toString())
+        binding.etTherapyLow.setText(UserPreferences.getTherapyWindowLow(this).toString())
+        binding.etTherapyHigh.setText(UserPreferences.getTherapyWindowHigh(this).toString())
         binding.etThreshold.setText(UserPreferences.getReminderThreshold(this).toString())
         binding.etLevoHour.setText(UserPreferences.getLevothyroxineReminderHour(this).toString())
     }
@@ -62,24 +64,33 @@ class SettingsActivity : AppCompatActivity() {
         val weight = binding.etWeight.text.toString().toDoubleOrNull()
         val height = binding.etHeight.text.toString().toDoubleOrNull()
         val bodyFat = binding.etBodyFat.text.toString().toDoubleOrNull()
+        val tshTarget = binding.etTSHTarget.text.toString().toDoubleOrNull()
+        val therapyLow = binding.etTherapyLow.text.toString().toFloatOrNull() ?: 0f
+        val therapyHigh = binding.etTherapyHigh.text.toString().toFloatOrNull() ?: 0f
         val threshold = binding.etThreshold.text.toString().toDoubleOrNull()
         val levoHour = binding.etLevoHour.text.toString().toIntOrNull()
 
         if (weight == null || weight <= 0) { Toast.makeText(this, "体重无效", Toast.LENGTH_SHORT).show(); return }
         if (height == null || height <= 0) { Toast.makeText(this, "身高无效", Toast.LENGTH_SHORT).show(); return }
         if (bodyFat == null || bodyFat < 0 || bodyFat > 100) { Toast.makeText(this, "体脂率需在0-100之间", Toast.LENGTH_SHORT).show(); return }
+        if (tshTarget == null || tshTarget < 0) { Toast.makeText(this, "TSH目标无效", Toast.LENGTH_SHORT).show(); return }
+        if (therapyLow < 0 || therapyHigh < 0) { Toast.makeText(this, "治疗窗不能为负", Toast.LENGTH_SHORT).show(); return }
         if (threshold == null) { Toast.makeText(this, "阈值无效", Toast.LENGTH_SHORT).show(); return }
         if (levoHour == null || levoHour !in 0..23) { Toast.makeText(this, "小时需在0-23之间", Toast.LENGTH_SHORT).show(); return }
 
         UserPreferences.setWeightKg(this, weight)
         UserPreferences.setHeightCm(this, height)
         UserPreferences.setBodyFatPercent(this, bodyFat)
+        UserPreferences.setTSHTarget(this, tshTarget)
+        UserPreferences.setTherapyWindowLow(this, therapyLow)
+        UserPreferences.setTherapyWindowHigh(this, therapyHigh)
         UserPreferences.setReminderThreshold(this, threshold)
         UserPreferences.setLevothyroxineReminderHour(this, levoHour)
 
         Toast.makeText(this, "✓ 已保存", Toast.LENGTH_SHORT).show()
     }
 
+    // 以下备份恢复代码与之前相同，略（但需确保包含之前的所有修复）
     private fun backupCSV() {
         lifecycleScope.launch {
             val uri = BackupHelper.exportToCSV(this@SettingsActivity)
