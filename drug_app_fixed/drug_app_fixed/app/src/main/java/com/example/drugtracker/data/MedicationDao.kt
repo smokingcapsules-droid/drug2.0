@@ -8,6 +8,9 @@ interface MedicationDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: MedicationRecord): Long
 
+    @Update
+    suspend fun update(record: MedicationRecord)
+
     @Delete
     suspend fun delete(record: MedicationRecord)
 
@@ -22,7 +25,4 @@ interface MedicationDao {
 
     @Query("SELECT COUNT(*) FROM medication_records WHERE drugName = :name AND takenAtMs >= :dayStartMs")
     suspend fun countTodayRecordsForDrug(name: String, dayStartMs: Long): Int
-
-    @Query("SELECT * FROM medication_records ORDER BY takenAtMs DESC")
-    suspend fun getAllRecordsSync(): List<MedicationRecord>
 }
