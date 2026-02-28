@@ -71,6 +71,7 @@ class DrugManagementActivity : AppCompatActivity() {
         val etTmax = view.findViewById<EditText>(R.id.etTmax)
         val etDose = view.findViewById<EditText>(R.id.etDose)
         val switchLipophilic = view.findViewById<Switch>(R.id.switchLipophilic)
+        val switchCritical = view.findViewById<Switch>(R.id.switchCritical) // 新增维持类开关
 
         AlertDialog.Builder(this)
             .setTitle("添加自定义药物")
@@ -90,8 +91,9 @@ class DrugManagementActivity : AppCompatActivity() {
                     name = name,
                     halfLifeHours = halfLife,
                     tmaxHours = tmax,
+                    defaultDose = dose,
                     isLipophilic = switchLipophilic.isChecked,
-                    defaultDose = dose
+                    isCritical = switchCritical.isChecked // 新增
                 )
                 viewModel.addCustomDrug(drug)
                 Toast.makeText(this, "已添加 $name", Toast.LENGTH_SHORT).show()
@@ -127,12 +129,14 @@ class DrugManagementActivity : AppCompatActivity() {
         val etTmax = view.findViewById<EditText>(R.id.etTmax)
         val etDose = view.findViewById<EditText>(R.id.etDose)
         val switchLipophilic = view.findViewById<Switch>(R.id.switchLipophilic)
+        val switchCritical = view.findViewById<Switch>(R.id.switchCritical) // 新增
 
         etName.setText(drug.name)
         etHalfLife.setText(drug.halfLifeHours.toString())
         etTmax.setText(drug.tmaxHours.toString())
         etDose.setText(drug.defaultDose?.toString() ?: "")
         switchLipophilic.isChecked = drug.isLipophilic
+        switchCritical.isChecked = drug.isCritical // 新增
 
         AlertDialog.Builder(this)
             .setTitle("编辑药物")
@@ -143,7 +147,8 @@ class DrugManagementActivity : AppCompatActivity() {
                     halfLifeHours = etHalfLife.text.toString().toDoubleOrNull() ?: drug.halfLifeHours,
                     tmaxHours = etTmax.text.toString().toDoubleOrNull() ?: drug.tmaxHours,
                     defaultDose = etDose.text.toString().toDoubleOrNull(),
-                    isLipophilic = switchLipophilic.isChecked
+                    isLipophilic = switchLipophilic.isChecked,
+                    isCritical = switchCritical.isChecked // 新增
                 )
                 viewModel.updateCustomDrug(updated)
                 Toast.makeText(this, "已更新", Toast.LENGTH_SHORT).show()
@@ -203,16 +208,16 @@ class DrugManagementActivity : AppCompatActivity() {
             fun bind(item: DrugItem, onMenuClick: (Any, Boolean, View) -> Unit) {
                 tvName.text = item.name
                 tvType.text = if (item.isCustom) "自定义" else "预设"
-                
+
                 val info = if (item.isCustom) {
                     val drug = item.data as CustomDrug
-                    "半衰期: ${drug.halfLifeHours}h, Tmax: ${drug.tmaxHours}h"
+                    "半衰期: ${drug.halfLifeHours}h, Tmax: ${drug.tmaxHours}h, 脂溶性: ${if(drug.isLipophilic)"是" else "否"}, 维持类: ${if(drug.isCritical)"是" else "否"}"
                 } else {
                     val drug = item.data as com.example.drugtracker.data.DrugInfo
-                    "半衰期: ${drug.halfLifeHours}h, Tmax: ${drug.tmaxHours}h"
+                    "半衰期: ${drug.halfLifeHours}h, Tmax: ${drug.tmaxHours}h, 脂溶性: ${if(drug.isLipophilic)"是" else "否"}, 维持类: ${if(drug.isCritical)"是" else "否"}"
                 }
                 tvInfo.text = info
-                
+
                 btnMenu.visibility = if (item.isCustom) View.VISIBLE else View.GONE
                 btnMenu.setOnClickListener { onMenuClick(item.data, item.isCustom, it) }
             }
