@@ -34,7 +34,6 @@ class FullscreenChartActivity : AppCompatActivity() {
 
         binding.btnClose.setOnClickListener { finish() }
 
-        // 修复：同时观察两个 LiveData，任意一个更新都重绘
         viewModel.allRecords.observe(this) { records ->
             renderChart(records, viewModel.allCustomDrugs.value?.map { it.toDrugInfo() } ?: emptyList())
         }
@@ -45,10 +44,10 @@ class FullscreenChartActivity : AppCompatActivity() {
 
     private fun renderChart(records: List<MedicationRecord>, customDrugInfos: List<com.example.drugtracker.data.DrugInfo>) {
         val weightKg = UserPreferences.getWeightKg(this)
+        val bodyFat = UserPreferences.getBodyFatPercent(this) // 获取体脂率
         val allDrugs = PresetDrugs.all + customDrugInfos
         val nowMs = System.currentTimeMillis()
 
-        // 全屏显示所有有记录的药物，时间范围前24h到后3天
         val drugsWithRecords = allDrugs.filter { drug ->
             records.any { it.drugName == drug.name }
         }
@@ -58,6 +57,7 @@ class FullscreenChartActivity : AppCompatActivity() {
             records,
             drugsWithRecords,
             weightKg,
+            bodyFat, // 新增参数
             nowMs - 24 * 60 * 60 * 1000L,
             nowMs + 3 * 24 * 60 * 60 * 1000L,
             nowMs
