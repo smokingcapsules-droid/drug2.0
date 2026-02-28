@@ -29,7 +29,7 @@ object UserPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit().putFloat("body_fat_percent", bodyFat.toFloat()).apply()
 
-    // 新增：TSH目标（mU/L），默认0.1（高危患者常用）
+    // 新增：TSH目标（mU/L），默认0.1
     fun getTSHTarget(context: Context): Double =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getFloat("tsh_target", 0.1f).toDouble()
@@ -37,6 +37,24 @@ object UserPreferences {
     fun setTSHTarget(context: Context, target: Double) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit().putFloat("tsh_target", target.toFloat()).apply()
+
+    // 新增：治疗窗下限（mg），默认0表示不启用
+    fun getTherapyWindowLow(context: Context): Float =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getFloat("therapy_low", 0f)
+
+    fun setTherapyWindowLow(context: Context, low: Float) =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putFloat("therapy_low", low).apply()
+
+    // 新增：治疗窗上限（mg），默认0表示不启用
+    fun getTherapyWindowHigh(context: Context): Float =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getFloat("therapy_high", 0f)
+
+    fun setTherapyWindowHigh(context: Context, high: Float) =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putFloat("therapy_high", high).apply()
 
     fun getReminderThreshold(context: Context): Double =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
