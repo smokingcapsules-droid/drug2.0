@@ -106,6 +106,7 @@ object DrugCalculator {
             records.filter { it.drugName == drug.name }
                 .groupBy { it.doseMg }.maxByOrNull { it.value.size }?.key ?: 1.0
         }
+        // 统一转换为毫克
         return if (drug.unit == "μg") dose / 1000.0 else dose
     }
 
