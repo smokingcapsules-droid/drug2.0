@@ -36,7 +36,6 @@ object ReminderEngine {
         var scanMs = nowMs
         val stepMs = 15 * 60 * 1000L
 
-        // 修改：使用新函数，传入 context 和 atTimeMs
         val currentConc = DrugCalculator.totalConcentrationPercent(records, drug, weightKg, bodyFat, nowMs)
         if (currentConc < threshold) return
 
