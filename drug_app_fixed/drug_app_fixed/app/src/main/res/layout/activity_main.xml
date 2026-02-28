@@ -80,7 +80,8 @@
                         android:layout_marginTop="6dp"
                         android:text="暂无活跃药物"
                         android:textSize="13sp"
-                        android:fontFamily="monospace" />
+                        android:fontFamily="monospace"
+                        android:textColor="?android:attr/textColorPrimary" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
