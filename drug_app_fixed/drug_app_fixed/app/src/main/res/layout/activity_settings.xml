@@ -42,6 +42,15 @@
             android:hint="体脂率 (%)"
             android:inputType="numberDecimal" />
 
+        <!-- 在体脂率输入框之后，提醒阈值之前添加 -->
+        <EditText
+            android:id="@+id/etTSHTarget"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="TSH 目标值 (mU/L，例如 0.1)"
+            android:inputType="numberDecimal" />
+       
         <EditText
             android:id="@+id/etThreshold"
             android:layout_width="match_parent"
