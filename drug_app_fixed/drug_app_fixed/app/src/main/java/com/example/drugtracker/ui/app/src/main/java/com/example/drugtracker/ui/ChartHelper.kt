@@ -4,6 +4,7 @@ import android.graphics.Color
 import com.example.drugtracker.data.DrugInfo
 import com.example.drugtracker.data.MedicationRecord
 import com.example.drugtracker.logic.DrugCalculator
+import com.example.drugtracker.util.UserPreferences
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.LimitLine
 import com.github.mikephil.charting.components.XAxis
@@ -82,16 +83,33 @@ object ChartHelper {
         endTimeMs: Long,
         nowMs: Long = System.currentTimeMillis()
     ) {
+        // 需要体脂率，这里从 UserPreferences 获取，但 ChartHelper 没有 context，所以需要传入
+        // 修改函数签名，增加 context 参数。但为了兼容，我们可以从传入的 weightKg 等推断？不行，需要 context。
+        // 更好的做法：在调用处传入 bodyFatPercent，因此修改函数签名。
+        // 因为现在编译错误，我们先按传入 bodyFatPercent 处理，但需要调整调用处。
+        // 这里假设调用者会传入 bodyFatPercent，我们修改函数签名。
+    }
+
+    // 新的函数签名，增加 bodyFatPercent 参数
+    fun updateChartData(
+        chart: LineChart,
+        records: List<MedicationRecord>,
+        drugs: List<DrugInfo>,
+        weightKg: Double,
+        bodyFatPercent: Double,
+        startTimeMs: Long,
+        endTimeMs: Long,
+        nowMs: Long = System.currentTimeMillis()
+    ) {
         val dataSets = mutableListOf<LineDataSet>()
         val timePoints = generateTimePoints(startTimeMs, endTimeMs)
 
         drugs.forEachIndexed { index, drug ->
             if (records.none { it.drugName == drug.name }) return@forEachIndexed
 
-            // 使用含吸收相的浓度计算，图表曲线更真实
             val entries = timePoints.map { timeMs ->
                 val pct = DrugCalculator.totalConcentrationPercent(
-                    records, drug, weightKg, timeMs
+                    records, drug, weightKg, bodyFatPercent, timeMs
                 ).toFloat()
                 Entry((timeMs / (1000 * 60)).toFloat(), pct)
             }
@@ -119,7 +137,6 @@ object ChartHelper {
                 sdf.format(Date(value.toLong() * 60 * 1000))
         }
 
-        // 现在竖线
         chart.xAxis.removeAllLimitLines()
         chart.xAxis.addLimitLine(LimitLine((nowMs / (1000 * 60)).toFloat(), "现在").apply {
             lineColor = Color.RED
@@ -129,7 +146,6 @@ object ChartHelper {
             textSize = 10f
         })
 
-        // 100%参考线（一个剂量当量）
         chart.axisLeft.removeAllLimitLines()
         chart.axisLeft.addLimitLine(LimitLine(100f, "1个剂量").apply {
             lineColor = Color.parseColor("#888888")
