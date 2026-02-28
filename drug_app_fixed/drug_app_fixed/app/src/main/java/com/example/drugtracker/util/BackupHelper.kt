@@ -10,7 +10,7 @@ import java.io.IOException
 
 object BackupHelper {
 
-    // ── 导出为CSV（比db文件更通用，任何app都能打开）──────
+    // 导出为CSV
     suspend fun exportToCSV(context: Context): Uri? {
         return try {
             val db = AppDatabase.getDatabase(context)
@@ -30,7 +30,7 @@ object BackupHelper {
         }
     }
 
-    // ── 从CSV恢复 ─────────────────────────────────────────
+    // 从CSV恢复
     suspend fun importFromCSV(context: Context, uri: Uri): Pair<Boolean, String> {
         return try {
             val inputStream = context.contentResolver.openInputStream(uri)
@@ -88,7 +88,7 @@ object BackupHelper {
         return result
     }
 
-    // 保留db备份（给高级用户）
+    // 导出数据库文件
     fun exportDatabaseFile(context: Context): Uri? {
         val dbFile = context.getDatabasePath("drug_tracker_database")
         val exportFile = File(context.getExternalFilesDir(null),
@@ -102,7 +102,7 @@ object BackupHelper {
         }
     }
 
-    // MODIFIED: 增强的数据库导入，使用 closeAndNullify 并返回详细结果
+    // 导入数据库文件（返回结果和消息）
     fun importDatabaseFile(context: Context, sourceUri: Uri): Pair<Boolean, String> {
         return try {
             // 1. 关闭并重置数据库单例
