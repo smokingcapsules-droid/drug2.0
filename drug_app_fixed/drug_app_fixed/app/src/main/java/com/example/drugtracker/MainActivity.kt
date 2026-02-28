@@ -87,6 +87,7 @@ class MainActivity : AppCompatActivity() {
                 selectedDrug = parent?.getItemAtPosition(position).toString()
                 val drug = PresetDrugs.findByName(selectedDrug)
                     ?: viewModel.allCustomDrugs.value?.find { it.name == selectedDrug }?.toDrugInfo()
+                // MODIFIED: 自动填充默认剂量时，保持原始值（不转换），因为用户输入时仍按药物原单位输入
                 drug?.defaultDose?.let { binding.etDose.setText(it.toString()) }
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -120,16 +121,22 @@ class MainActivity : AppCompatActivity() {
 
     private fun recordMedication() {
         if (selectedDrug.isEmpty()) { Toast.makeText(this, "请选择药物", Toast.LENGTH_SHORT).show(); return }
-        val dose = binding.etDose.text.toString().toDoubleOrNull()
-        if (dose == null || dose <= 0) { Toast.makeText(this, "请输入有效剂量", Toast.LENGTH_SHORT).show(); return }
+        val doseInput = binding.etDose.text.toString().toDoubleOrNull()
+        if (doseInput == null || doseInput <= 0) { Toast.makeText(this, "请输入有效剂量", Toast.LENGTH_SHORT).show(); return }
+
+        // MODIFIED: 获取当前药物信息，根据单位转换剂量为毫克
         val drug = PresetDrugs.findByName(selectedDrug)
             ?: viewModel.allCustomDrugs.value?.find { it.name == selectedDrug }?.toDrugInfo()
+        val doseMg = if (drug?.unit == "μg") doseInput / 1000.0 else doseInput
+
         viewModel.addRecord(MedicationRecord(
-            drugName = selectedDrug, doseMg = dose,
-            unit = drug?.unit ?: "mg", takenAtMs = selectedTimeMs,
+            drugName = selectedDrug,
+            doseMg = doseMg,
+            unit = "mg", // 统一存储单位为mg
+            takenAtMs = selectedTimeMs,
             notes = binding.etNotes.text.toString().trim()
         ))
-        Toast.makeText(this, "✓ 已记录 $selectedDrug ${dose}${drug?.unit ?: "mg"}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "✓ 已记录 $selectedDrug ${doseInput}${drug?.unit ?: "mg"}", Toast.LENGTH_SHORT).show()
         binding.etNotes.text?.clear()
         selectedTimeMs = System.currentTimeMillis()
         updateTimeButtonText()
