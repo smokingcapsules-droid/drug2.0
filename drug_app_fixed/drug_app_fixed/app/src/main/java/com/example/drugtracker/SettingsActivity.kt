@@ -44,8 +44,8 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun loadSettings() {
         binding.etWeight.setText(UserPreferences.getWeightKg(this).toString())
-        binding.etHeight.setText(UserPreferences.getHeightCm(this).toString())   // 新增
-        binding.etBodyFat.setText(UserPreferences.getBodyFatPercent(this).toString()) // 新增
+        binding.etHeight.setText(UserPreferences.getHeightCm(this).toString())
+        binding.etBodyFat.setText(UserPreferences.getBodyFatPercent(this).toString())
         binding.etThreshold.setText(UserPreferences.getReminderThreshold(this).toString())
         binding.etLevoHour.setText(UserPreferences.getLevothyroxineReminderHour(this).toString())
     }
@@ -60,8 +60,8 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun saveSettings() {
         val weight = binding.etWeight.text.toString().toDoubleOrNull()
-        val height = binding.etHeight.text.toString().toDoubleOrNull()   // 新增
-        val bodyFat = binding.etBodyFat.text.toString().toDoubleOrNull() // 新增
+        val height = binding.etHeight.text.toString().toDoubleOrNull()
+        val bodyFat = binding.etBodyFat.text.toString().toDoubleOrNull()
         val threshold = binding.etThreshold.text.toString().toDoubleOrNull()
         val levoHour = binding.etLevoHour.text.toString().toIntOrNull()
 
@@ -80,7 +80,6 @@ class SettingsActivity : AppCompatActivity() {
         Toast.makeText(this, "✓ 已保存", Toast.LENGTH_SHORT).show()
     }
 
-    // CSV备份
     private fun backupCSV() {
         lifecycleScope.launch {
             val uri = BackupHelper.exportToCSV(this@SettingsActivity)
@@ -92,7 +91,6 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    // 恢复入口（支持CSV和DB）
     private fun startFileRestore() {
         AlertDialog.Builder(this)
             .setTitle("恢复数据")
