@@ -13,7 +13,6 @@ object UserPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit().putFloat("weight_kg", weight.toFloat()).apply()
 
-    // 新增：身高（cm）
     fun getHeightCm(context: Context): Double =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getFloat("height_cm", 165f).toDouble()
@@ -22,7 +21,6 @@ object UserPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit().putFloat("height_cm", height.toFloat()).apply()
 
-    // 新增：体脂率（%）
     fun getBodyFatPercent(context: Context): Double =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getFloat("body_fat_percent", 25f).toDouble()
@@ -31,7 +29,6 @@ object UserPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit().putFloat("body_fat_percent", bodyFat.toFloat()).apply()
 
-    // 以下为原有设置
     fun getReminderThreshold(context: Context): Double =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getFloat("reminder_threshold", 30f).toDouble()
