@@ -7,9 +7,11 @@ import android.os.Bundle
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import com.example.drugtracker.data.DrugInfo
 import com.example.drugtracker.data.MedicationRecord
 import com.example.drugtracker.data.PresetDrugs
 import com.example.drugtracker.databinding.ActivityMainBinding
@@ -29,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     private var selectedDrug: String = ""
     private var currentRecords: List<MedicationRecord> = emptyList()
     private var selectedTimeMs: Long = System.currentTimeMillis()
+    private var currentDrugInfo: DrugInfo? = null // 当前选中的药物信息
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,7 +58,10 @@ class MainActivity : AppCompatActivity() {
         selectedDrug = drugName
         val adapter = binding.spinnerDrug.adapter ?: return
         for (i in 0 until adapter.count) {
-            if (adapter.getItem(i).toString() == drugName) { binding.spinnerDrug.setSelection(i); break }
+            if (adapter.getItem(i).toString() == drugName) {
+                binding.spinnerDrug.setSelection(i)
+                break
+            }
         }
     }
 
@@ -65,8 +71,11 @@ class MainActivity : AppCompatActivity() {
         DatePickerDialog(this, { _, year, month, day ->
             cal.set(year, month, day)
             TimePickerDialog(this, { _, hour, minute ->
-                cal.set(Calendar.HOUR_OF_DAY, hour); cal.set(Calendar.MINUTE, minute); cal.set(Calendar.SECOND, 0)
-                selectedTimeMs = cal.timeInMillis; updateTimeButtonText()
+                cal.set(Calendar.HOUR_OF_DAY, hour)
+                cal.set(Calendar.MINUTE, minute)
+                cal.set(Calendar.SECOND, 0)
+                selectedTimeMs = cal.timeInMillis
+                updateTimeButtonText()
             }, cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), true).show()
         }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
     }
@@ -82,14 +91,19 @@ class MainActivity : AppCompatActivity() {
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             binding.spinnerDrug.adapter = adapter
         }
+
         binding.spinnerDrug.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 selectedDrug = parent?.getItemAtPosition(position).toString()
-                val drug = PresetDrugs.findByName(selectedDrug)
+                currentDrugInfo = PresetDrugs.findByName(selectedDrug)
                     ?: viewModel.allCustomDrugs.value?.find { it.name == selectedDrug }?.toDrugInfo()
-                // MODIFIED: 自动填充默认剂量时，保持原始值（不转换），因为用户输入时仍按药物原单位输入
-                drug?.defaultDose?.let { binding.etDose.setText(it.toString()) }
+
+                // 更新剂量输入框的提示单位
+                binding.tvUnit.text = currentDrugInfo?.unit ?: "mg"
+                // 自动填充默认剂量（保持原始数值，不转换）
+                currentDrugInfo?.defaultDose?.let { binding.etDose.setText(it.toString()) }
             }
+
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
     }
@@ -99,7 +113,9 @@ class MainActivity : AppCompatActivity() {
             binding.tabLayout.addTab(binding.tabLayout.newTab().setText(it))
         }
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) { updateChartForTab(tab?.position ?: 0) }
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                updateChartForTab(tab?.position ?: 0)
+            }
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
@@ -107,7 +123,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupChart() {
         ChartHelper.setupChart(binding.chart)
-        binding.chart.setOnClickListener { startActivity(Intent(this, FullscreenChartActivity::class.java)) }
+        binding.chart.setOnClickListener {
+            startActivity(Intent(this, FullscreenChartActivity::class.java))
+        }
     }
 
     private fun setupButtons() {
@@ -120,23 +138,48 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun recordMedication() {
-        if (selectedDrug.isEmpty()) { Toast.makeText(this, "请选择药物", Toast.LENGTH_SHORT).show(); return }
+        if (selectedDrug.isEmpty()) {
+            Toast.makeText(this, "请选择药物", Toast.LENGTH_SHORT).show()
+            return
+        }
         val doseInput = binding.etDose.text.toString().toDoubleOrNull()
-        if (doseInput == null || doseInput <= 0) { Toast.makeText(this, "请输入有效剂量", Toast.LENGTH_SHORT).show(); return }
+        if (doseInput == null || doseInput <= 0) {
+            Toast.makeText(this, "请输入有效剂量", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-        // MODIFIED: 获取当前药物信息，根据单位转换剂量为毫克
-        val drug = PresetDrugs.findByName(selectedDrug)
-            ?: viewModel.allCustomDrugs.value?.find { it.name == selectedDrug }?.toDrugInfo()
-        val doseMg = if (drug?.unit == "μg") doseInput / 1000.0 else doseInput
+        // 获取当前药物信息
+        val drug = currentDrugInfo ?: run {
+            Toast.makeText(this, "药物信息获取失败", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-        viewModel.addRecord(MedicationRecord(
+        // 根据药物单位将用户输入转换为毫克（mg）
+        val doseMg = if (drug.unit == "μg") {
+            doseInput / 1000.0
+        } else {
+            doseInput
+        }
+
+        // 创建记录
+        val record = MedicationRecord(
             drugName = selectedDrug,
             doseMg = doseMg,
-            unit = "mg", // 统一存储单位为mg
+            unit = "mg", // 统一存储为mg
             takenAtMs = selectedTimeMs,
             notes = binding.etNotes.text.toString().trim()
-        ))
-        Toast.makeText(this, "✓ 已记录 $selectedDrug ${doseInput}${drug?.unit ?: "mg"}", Toast.LENGTH_SHORT).show()
+        )
+
+        viewModel.addRecord(record)
+
+        // 显示成功提示（使用药物原始单位）
+        Toast.makeText(
+            this,
+            "✓ 已记录 $selectedDrug $doseInput${drug.unit}",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        // 清空备注，重置时间为现在
         binding.etNotes.text?.clear()
         selectedTimeMs = System.currentTimeMillis()
         updateTimeButtonText()
@@ -150,6 +193,7 @@ class MainActivity : AppCompatActivity() {
             updateChartForTab(binding.tabLayout.selectedTabPosition)
         }
         viewModel.allCustomDrugs.observe(this) {
+            // 自定义药物变化时，可能影响药物列表和计算，但无需重复更新记录
             updateActiveDrugsCard(currentRecords)
             updateChartForTab(binding.tabLayout.selectedTabPosition)
         }
@@ -173,7 +217,10 @@ class MainActivity : AppCompatActivity() {
         val nowMs = System.currentTimeMillis()
         val active = DrugCalculator.getActiveDrugs(records, allDrugs, weightKg, nowMs)
 
-        if (active.isEmpty()) { binding.tvActiveDrugs.text = "暂无活跃药物"; return }
+        if (active.isEmpty()) {
+            binding.tvActiveDrugs.text = "暂无活跃药物"
+            return
+        }
 
         val sb = StringBuilder()
         active.take(8).forEach { (drug, pct) ->
@@ -184,13 +231,13 @@ class MainActivity : AppCompatActivity() {
             if (advice.isMaintenance) {
                 // 维持类：显示稳态达成度
                 val ssStr = String.format("%.0f", advice.steadyStatePercent)
-                sb.appendLine("${drug.name}")
+                sb.appendLine(drug.name)
                 sb.appendLine("  $bar 稳态${ssStr}%  剩${String.format("%.1f", advice.remainingMg)}${drug.unit}")
                 sb.appendLine("  → 按处方服用 ${advice.standardDose}${drug.unit}")
             } else {
                 // 按需类：显示残余%和补充建议
                 val warn = if (advice.isAccumulated) " ⚠积累" else ""
-                sb.appendLine("${drug.name}")
+                sb.appendLine(drug.name)
                 sb.appendLine("  $bar ${String.format("%.0f", pct)}%残余$warn  剩${String.format("%.2f", advice.remainingMg)}${drug.unit}")
                 if (advice.suggestedDose > 0.01) {
                     sb.appendLine("  → 可补充 ${String.format("%.2f", advice.suggestedDose)}${drug.unit}")
@@ -207,12 +254,20 @@ class MainActivity : AppCompatActivity() {
         val weightKg = UserPreferences.getWeightKg(this)
         val nowMs = System.currentTimeMillis()
         val allDrugs = PresetDrugs.all + (viewModel.allCustomDrugs.value?.map { it.toDrugInfo() } ?: emptyList())
-        data class Cfg(val drugs: List<com.example.drugtracker.data.DrugInfo>, val start: Long, val end: Long)
+        data class Cfg(val drugs: List<DrugInfo>, val start: Long, val end: Long)
+
         val cfg = when (tabPosition) {
-            0 -> { val a = DrugCalculator.getActiveDrugs(currentRecords, allDrugs, weightKg, nowMs).map { it.first }; Cfg(a, nowMs - 6*3600_000L, nowMs + 18*3600_000L) }
-            1 -> Cfg(PresetDrugs.getFunctionalDrugs(), nowMs - 6*3600_000L, nowMs + 24*3600_000L)
-            2 -> Cfg(PresetDrugs.getMaintenanceDrugs(), nowMs - 24*3600_000L, nowMs + 7*24*3600_000L)
-            else -> { val w = allDrugs.filter { d -> currentRecords.any { it.drugName == d.name } }; Cfg(w, nowMs - 24*3600_000L, nowMs + 3*24*3600_000L) }
+            0 -> {
+                val activeDrugs = DrugCalculator.getActiveDrugs(currentRecords, allDrugs, weightKg, nowMs)
+                    .map { it.first }
+                Cfg(activeDrugs, nowMs - 6 * 3600_000L, nowMs + 18 * 3600_000L)
+            }
+            1 -> Cfg(PresetDrugs.getFunctionalDrugs(), nowMs - 6 * 3600_000L, nowMs + 24 * 3600_000L)
+            2 -> Cfg(PresetDrugs.getMaintenanceDrugs(), nowMs - 24 * 3600_000L, nowMs + 7 * 24 * 3600_000L)
+            else -> {
+                val withRecords = allDrugs.filter { d -> currentRecords.any { it.drugName == d.name } }
+                Cfg(withRecords, nowMs - 24 * 3600_000L, nowMs + 3 * 24 * 3600_000L)
+            }
         }
         ChartHelper.updateChartData(binding.chart, currentRecords, cfg.drugs, weightKg, cfg.start, cfg.end, nowMs)
     }
