@@ -6,6 +6,7 @@ import androidx.core.content.FileProvider
 import com.example.drugtracker.data.AppDatabase
 import com.example.drugtracker.data.MedicationRecord
 import java.io.File
+import java.io.IOException
 
 object BackupHelper {
 
@@ -101,16 +102,38 @@ object BackupHelper {
         }
     }
 
-    fun importDatabaseFile(context: Context, sourceUri: Uri): Boolean {
+    // MODIFIED: 增强的数据库导入，使用 closeAndNullify 并返回详细结果
+    fun importDatabaseFile(context: Context, sourceUri: Uri): Pair<Boolean, String> {
         return try {
-            val inputStream = context.contentResolver.openInputStream(sourceUri)
+            // 1. 关闭并重置数据库单例
+            AppDatabase.closeAndNullify()
+
+            // 2. 获取目标数据库文件
             val dbFile = context.getDatabasePath("drug_tracker_database")
-            AppDatabase.getDatabase(context).close()
-            inputStream?.use { it.copyTo(dbFile.outputStream()) }
-            true
-        } catch (e: Exception) {
+            if (!dbFile.exists()) {
+                dbFile.parentFile?.mkdirs()
+            }
+
+            // 3. 复制文件
+            context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                dbFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            } ?: return Pair(false, "无法读取源文件")
+
+            // 4. 重新初始化数据库（下次调用 getDatabase 时会重建）
+            AppDatabase.getDatabase(context)
+
+            Pair(true, "数据库恢复成功，请完全重启应用")
+        } catch (e: IOException) {
             CrashLogger.log("restore db failed", e)
-            false
+            Pair(false, "文件读写失败：${e.message}")
+        } catch (e: SecurityException) {
+            CrashLogger.log("restore db permission error", e)
+            Pair(false, "权限不足，无法访问文件")
+        } catch (e: Exception) {
+            CrashLogger.log("restore db unexpected", e)
+            Pair(false, "未知错误：${e.message}")
         }
     }
 }
