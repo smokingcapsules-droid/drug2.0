@@ -148,7 +148,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupChart() {
-        ChartHelper.setupChart(binding.chart)
+        // 修改：传递 context 参数
+        ChartHelper.setupChart(binding.chart, this)
         binding.chart.setOnClickListener {
             startActivity(Intent(this, FullscreenChartActivity::class.java))
         }
@@ -297,8 +298,8 @@ class MainActivity : AppCompatActivity() {
     private fun updateChartForTab(tabPosition: Int) {
         val weightKg = UserPreferences.getWeightKg(this)
         val bodyFat = UserPreferences.getBodyFatPercent(this)
-        val therapyLow = UserPreferences.getTherapyWindowLow(this)   // 治疗窗下限，后续添加
-        val therapyHigh = UserPreferences.getTherapyWindowHigh(this) // 治疗窗上限
+        val therapyLow = UserPreferences.getTherapyWindowLow(this)
+        val therapyHigh = UserPreferences.getTherapyWindowHigh(this)
         val nowMs = System.currentTimeMillis()
         val allDrugs = PresetDrugs.all + (viewModel.allCustomDrugs.value?.map { it.toDrugInfo() } ?: emptyList())
         data class Cfg(val drugs: List<DrugInfo>, val start: Long, val end: Long)
