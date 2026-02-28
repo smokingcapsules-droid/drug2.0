@@ -49,22 +49,22 @@
             android:hint="TSH目标 (mU/L, 例如 0.1)"
             android:inputType="numberDecimal" />
 
-        <!-- 治疗窗下限 -->
+        <!-- 治疗窗下限（单位：百分比） -->
         <EditText
             android:id="@+id/etTherapyLow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="治疗窗下限 (mg, 0为禁用)"
+            android:hint="治疗窗下限 (%, 0为禁用)"
             android:inputType="numberDecimal" />
 
-        <!-- 治疗窗上限 -->
+        <!-- 治疗窗上限（单位：百分比） -->
         <EditText
             android:id="@+id/etTherapyHigh"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="治疗窗上限 (mg, 0为禁用)"
+            android:hint="治疗窗上限 (%, 0为禁用)"
             android:inputType="numberDecimal" />
 
         <EditText
