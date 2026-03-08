@@ -27,6 +27,8 @@ object ExportHelper {
 
     private fun buildCSV(records: List<MedicationRecord>): String {
         val sb = StringBuilder()
+        // UTF-8 BOM：让 Excel/WPS 正确识别中文编码
+        sb.append('\uFEFF')
         sb.appendLine("药物名称,剂量,单位,服药时间,记录类型,备注")
         
         records.forEach { record ->
@@ -39,7 +41,8 @@ object ExportHelper {
                 "supplement" -> "补充剂"
                 else -> "其他"
             }
-            sb.appendLine("${record.drugName},${record.doseMg},${record.unit},$timeStr,$typeStr,\"${record.notes}\"")
+            // 用 ="..." 格式写入时间，强制 Excel/WPS 作为文本读取，防止显示 ####
+            sb.appendLine("${record.drugName},${record.doseMg},${record.unit},=\"$timeStr\",$typeStr,\"${record.notes}\"")
         }
         
         return sb.toString()
